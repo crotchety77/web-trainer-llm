@@ -1,0 +1,139 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import AppLayout from "../components/AppLayout";
+import { useAuthUser } from "../hooks/useAuthUser";
+import { apiRequest } from "../lib/api";
+import { clearToken, getAuthHeaders } from "../lib/auth";
+
+export default function CourseDetailPage() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const { user } = useAuthUser();
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCourse() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const data = await apiRequest(`/api/courses/${id}`, {
+          headers: getAuthHeaders()
+        });
+        if (!cancelled) {
+          setCourse(data.course);
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setError(requestError.message);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadCourse();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  function handleLogout() {
+    clearToken();
+    navigate("/login");
+  }
+
+  async function handleEnroll() {
+    setMessage("");
+    setError("");
+
+    try {
+      await apiRequest(`/api/courses/${id}/enroll`, {
+        method: "POST",
+        headers: getAuthHeaders()
+      });
+      setMessage("You are enrolled in this course.");
+      setCourse((current) => (current ? { ...current, is_enrolled: true } : current));
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  return (
+    <AppLayout
+      title={course?.title || "Course"}
+      subtitle="Course overview, lessons list, and enrollment action."
+      user={user}
+      onLogout={handleLogout}
+    >
+      <section className="panel">
+        {loading ? <p>Loading course...</p> : null}
+        {error ? <p className="error">{error}</p> : null}
+        {message ? <p className="success">{message}</p> : null}
+
+        {course ? (
+          <div className="detail-grid">
+            <div className="detail-main">
+              {course.cover_image_url ? (
+                <img className="hero-cover" src={course.cover_image_url} alt={course.title} />
+              ) : null}
+
+              <div className="tag-row">
+                {(course.tags_json || []).map((item) => (
+                  <span key={item} className="tag-chip">
+                    {item}
+                  </span>
+                ))}
+              </div>
+
+              <h2>{course.title}</h2>
+              <p className="lead">{course.short_description}</p>
+              <p>{course.intro_content}</p>
+
+              {user?.role === "student" ? (
+                <div className="action-row">
+                  <button type="button" onClick={handleEnroll} disabled={course.is_enrolled}>
+                    {course.is_enrolled ? "Already enrolled" : "Enroll in course"}
+                  </button>
+                  {course.lessons?.[0] ? (
+                    <Link
+                      className="secondary-link-button"
+                      to={`/learn/${course.id}/${course.lessons[0].id}`}
+                    >
+                      Start learning
+                    </Link>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <aside className="sidebar-panel">
+              <h3>Lessons</h3>
+              <div className="stack-list">
+                {(course.lessons || []).map((lesson) => (
+                  <Link
+                    key={lesson.id}
+                    className="lesson-link-card"
+                    to={`/learn/${course.id}/${lesson.id}`}
+                  >
+                    <strong>
+                      {lesson.position}. {lesson.title}
+                    </strong>
+                  </Link>
+                ))}
+              </div>
+            </aside>
+          </div>
+        ) : null}
+      </section>
+    </AppLayout>
+  );
+}
