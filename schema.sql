@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS submissions CASCADE;
 DROP TABLE IF EXISTS lesson_blocks CASCADE;
 DROP TABLE IF EXISTS enrollments CASCADE;
 DROP TABLE IF EXISTS lessons CASCADE;
@@ -41,6 +42,18 @@ CREATE TABLE lesson_blocks (
   content TEXT NOT NULL DEFAULT '',
   attachment_url TEXT NOT NULL DEFAULT '',
   position INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE submissions (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  block_id INTEGER NOT NULL REFERENCES lesson_blocks(id) ON DELETE CASCADE,
+  code TEXT NOT NULL,
+  language VARCHAR(40) NOT NULL DEFAULT 'javascript',
+  status VARCHAR(40) NOT NULL DEFAULT 'submitted',
+  result_message TEXT NOT NULL DEFAULT '',
+  tests_result JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

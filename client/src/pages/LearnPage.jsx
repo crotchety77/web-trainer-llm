@@ -13,6 +13,8 @@ export default function LearnPage() {
   const [lesson, setLesson] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [solutions, setSolutions] = useState({});
+  const [submissionState, setSubmissionState] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +58,75 @@ export default function LearnPage() {
   function handleLogout() {
     clearToken();
     navigate("/login");
+  }
+
+  function handleSolutionChange(blockId, value) {
+    setSolutions((current) => ({
+      ...current,
+      [blockId]: value
+    }));
+    setSubmissionState((current) => ({
+      ...current,
+      [blockId]: {
+        ...current[blockId],
+        error: "",
+        submission: null
+      }
+    }));
+  }
+
+  async function handleSubmitSolution(blockId) {
+    const code = String(solutions[blockId] || "");
+
+    if (!code.trim()) {
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: {
+          submitting: false,
+          error: "Enter your solution code before submitting.",
+          submission: null
+        }
+      }));
+      return;
+    }
+
+    setSubmissionState((current) => ({
+      ...current,
+      [blockId]: {
+        submitting: true,
+        error: "",
+        submission: null
+      }
+    }));
+
+    try {
+      const response = await apiRequest(`/api/blocks/${blockId}/submissions`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          code,
+          language: "javascript"
+        })
+      });
+
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: {
+          submitting: false,
+          error: "",
+          submission: response.submission
+        }
+      }));
+    } catch (requestError) {
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: {
+          submitting: false,
+          error: requestError.message,
+          submission: null
+        }
+      }));
+    }
   }
 
   return (
@@ -111,6 +182,38 @@ export default function LearnPage() {
                       <a href={block.attachment_url} target="_blank" rel="noreferrer">
                         Attachment
                       </a>
+                    ) : null}
+                    {["practice", "test"].includes(block.type) ? (
+                      <div className="code-submission">
+                        <label htmlFor={`solution-${block.id}`}>Solution code</label>
+                        <textarea
+                          id={`solution-${block.id}`}
+                          aria-label={`Solution code for ${block.title}`}
+                          className="code-editor"
+                          rows={10}
+                          value={solutions[block.id] || ""}
+                          onChange={(event) => handleSolutionChange(block.id, event.target.value)}
+                          placeholder="function solve() {&#10;  return true;&#10;}"
+                        />
+                        <div className="action-row">
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            disabled={submissionState[block.id]?.submitting}
+                            onClick={() => handleSubmitSolution(block.id)}
+                          >
+                            {submissionState[block.id]?.submitting ? "Submitting..." : "Submit solution"}
+                          </button>
+                          {submissionState[block.id]?.error ? (
+                            <p className="error">{submissionState[block.id].error}</p>
+                          ) : null}
+                          {submissionState[block.id]?.submission ? (
+                            <p className="success">
+                              {submissionState[block.id].submission.result_message}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
                     ) : null}
                   </article>
                 ))}

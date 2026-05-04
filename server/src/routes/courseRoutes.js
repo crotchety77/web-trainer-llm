@@ -95,6 +95,20 @@ async function getBlockWithOwnership(blockId) {
   return result.rows[0] || null;
 }
 
+async function getBlockWithCourse(blockId) {
+  const result = await pool.query(
+    `SELECT lb.id, lb.lesson_id, lb.type, lb.title, l.course_id,
+            c.author_id, c.is_published, c.title AS course_title
+     FROM lesson_blocks lb
+     JOIN lessons l ON l.id = lb.lesson_id
+     JOIN courses c ON c.id = l.course_id
+     WHERE lb.id = $1`,
+    [blockId]
+  );
+
+  return result.rows[0] || null;
+}
+
 function canReadCourse(course, user) {
   if (course.is_published) {
     return true;
@@ -604,5 +618,70 @@ router.patch("/blocks/:id", authMiddleware, requireRole("author"), async (reques
     return response.status(500).json({ message: "Failed to update block" });
   }
 });
+
+router.post(
+  "/blocks/:blockId/submissions",
+  authMiddleware,
+  requireRole("student"),
+  async (request, response) => {
+    const blockId = Number(request.params.blockId);
+    const code = String(request.body.code || "").trim();
+    const language = String(request.body.language || "javascript").trim() || "javascript";
+
+    if (!blockId) {
+      return response.status(400).json({ message: "Invalid block id" });
+    }
+
+    if (!code) {
+      return response.status(400).json({ message: "Solution code is required" });
+    }
+
+    try {
+      const block = await getBlockWithCourse(blockId);
+
+      if (!block) {
+        return response.status(404).json({ message: "Lesson block not found" });
+      }
+
+      if (!["practice", "test"].includes(block.type)) {
+        return response.status(400).json({ message: "Solutions can be submitted only for practice or test blocks" });
+      }
+
+      if (!block.is_published) {
+        return response.status(403).json({ message: "You do not have access to this lesson block" });
+      }
+
+      const resultStatus = "accepted";
+      const resultMessage = "Solution submitted successfully. Automatic code checks are mocked for now.";
+      const testsResult = {
+        total: 1,
+        passed: 1,
+        failed: 0
+      };
+
+      const result = await pool.query(
+        `INSERT INTO submissions (
+           student_id, block_id, code, language, status, result_message, tests_result
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+         RETURNING id, student_id, block_id, code, language, status, result_message, tests_result, created_at`,
+        [
+          request.user.id,
+          blockId,
+          code,
+          language,
+          resultStatus,
+          resultMessage,
+          JSON.stringify(testsResult)
+        ]
+      );
+
+      return response.status(201).json({ submission: result.rows[0] });
+    } catch (error) {
+      console.error("[submissions/create] Failed:", error.message);
+      return response.status(500).json({ message: "Failed to submit solution" });
+    }
+  }
+);
 
 export default router;
