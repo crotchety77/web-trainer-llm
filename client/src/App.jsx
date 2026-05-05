@@ -8,6 +8,7 @@ import CourseDetailPage from "./pages/CourseDetailPage";
 import LearnPage from "./pages/LearnPage";
 import AuthorDashboardPage from "./pages/AuthorDashboardPage";
 import AuthorCourseEditorPage from "./pages/AuthorCourseEditorPage";
+import AuthorCourseContentEditorPage from "./pages/AuthorCourseContentEditorPage";
 
 export default function App() {
   return (
@@ -47,6 +48,14 @@ export default function App() {
         element={
           <ProtectedRoute roles={["author"]}>
             <AuthorCourseEditorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/author/courses/:id/content"
+        element={
+          <ProtectedRoute roles={["author"]}>
+            <AuthorCourseContentEditorPage />
           </ProtectedRoute>
         }
       />

@@ -1,54 +1,5 @@
-import express from "express";
-import cors from "cors";
-import authRoutes from "./routes/authRoutes.js";
-import courseRoutes from "./routes/courseRoutes.js";
+import { app } from "./app.js";
 import { config } from "./config.js";
-import { getAiStatus } from "./modules/ai.js";
-
-const app = express();
-
-app.use(
-  cors({
-    origin: config.clientUrl
-  })
-);
-app.use(express.json());
-app.use((request, response, next) => {
-  const startedAt = Date.now();
-  console.log(`[http] ${request.method} ${request.originalUrl}`);
-
-  response.on("finish", () => {
-    const duration = Date.now() - startedAt;
-    console.log(
-      `[http] ${request.method} ${request.originalUrl} -> ${response.statusCode} (${duration}ms)`
-    );
-  });
-
-  next();
-});
-
-app.get("/api/health", (request, response) => {
-  response.json({
-    status: "ok",
-    ai: getAiStatus()
-  });
-});
-
-app.use("/api/auth", authRoutes);
-app.use("/api", courseRoutes);
-
-app.use((error, request, response, next) => {
-  if (response.headersSent) {
-    return next(error);
-  }
-
-  console.error("[server] Unhandled error:", error.message);
-
-  return response.status(500).json({
-    message: "Internal server error",
-    error: error.message
-  });
-});
 
 app.listen(config.port, () => {
   console.log(`Server listening on port ${config.port}`);

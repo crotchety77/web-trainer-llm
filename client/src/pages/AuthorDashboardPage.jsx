@@ -77,9 +77,14 @@ export default function AuthorDashboardPage() {
                 </div>
                 <h2>{course.title}</h2>
                 <p>{course.short_description}</p>
-                <Link className="primary-link-button" to={`/author/courses/${course.id}/edit`}>
-                  Edit course
-                </Link>
+                <div className="action-row">
+                  <Link className="primary-link-button" to={`/author/courses/${course.id}/edit`}>
+                    Edit course page
+                  </Link>
+                  <Link className="secondary-link-button" to={`/author/courses/${course.id}/content`}>
+                    Edit content
+                  </Link>
+                </div>
               </div>
             </article>
           ))}
