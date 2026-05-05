@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
@@ -15,6 +15,27 @@ export default function LearnPage() {
   const [loading, setLoading] = useState(true);
   const [solutions, setSolutions] = useState({});
   const [submissionState, setSubmissionState] = useState({});
+
+  const lessonSections = useMemo(() => {
+    const sectionSize = 6;
+
+    return lessons.reduce((sections, item) => {
+      const sectionIndex = Math.floor((Number(item.position || 1) - 1) / sectionSize);
+      const title = `Section ${sectionIndex + 1}`;
+      const existingSection = sections.find((section) => section.title === title);
+
+      if (existingSection) {
+        existingSection.lessons.push(item);
+        return sections;
+      }
+
+      sections.push({
+        title,
+        lessons: [item]
+      });
+      return sections;
+    }, []);
+  }, [lessons]);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,92 +153,154 @@ export default function LearnPage() {
   return (
     <AppLayout
       title={lesson?.course_title || "Learning Workspace"}
-      subtitle="Lesson navigation on the left, ordered content blocks on the right."
+      subtitle="Read the theory, solve the task, and keep lesson context close."
       user={user}
       onLogout={handleLogout}
     >
-      <section className="panel">
+      <section className="learn-page">
         {loading ? <p>Loading lesson...</p> : null}
         {error ? <p className="error">{error}</p> : null}
 
         {!loading && lesson ? (
           <div className="learn-layout">
-            <aside className="sidebar-panel">
-              <h3>Lessons</h3>
-              <div className="stack-list">
-                {lessons.map((item) => (
-                  <Link
-                    key={item.id}
-                    className={`lesson-link-card ${item.id === lesson.id ? "active" : ""}`}
-                    to={`/learn/${courseId}/${item.id}`}
-                  >
-                    <strong>
-                      {item.position}. {item.title}
-                    </strong>
-                  </Link>
-                ))}
+            <aside className="learn-sidebar" aria-label="Lesson navigation">
+              <div className="learn-sidebar-header">
+                <span className="eyebrow">Course</span>
+                <h2>Lessons</h2>
+              </div>
+              <div className="lesson-accordion">
+                {lessonSections.map((section) => {
+                  const isCurrentSection = section.lessons.some((item) => item.id === lesson.id);
+
+                  return (
+                    <details key={section.title} className="lesson-section" open={isCurrentSection}>
+                      <summary>
+                        <span>{section.title}</span>
+                        <span className="lesson-count">{section.lessons.length}</span>
+                      </summary>
+                      <div className="lesson-section-list">
+                        {section.lessons.map((item) => (
+                          <Link
+                            key={item.id}
+                            className={`lesson-link-card ${item.id === lesson.id ? "active" : ""}`}
+                            to={`/learn/${courseId}/${item.id}`}
+                          >
+                            <span className="lesson-number">{item.position}</span>
+                            <strong>
+                              {item.position}. {item.title}
+                            </strong>
+                          </Link>
+                        ))}
+                      </div>
+                    </details>
+                  );
+                })}
               </div>
             </aside>
 
-            <div className="lesson-content">
-              <div className="lesson-header">
-                <h2>
-                  {lesson.position}. {lesson.title}
-                </h2>
-                <p className="muted">
-                  Blocks are grouped lecture → practice → test, then sorted by position.
-                </p>
-              </div>
+            <div className="learn-workspace">
+              <main className="lesson-content">
+                <div className="lesson-header">
+                  <span className="eyebrow">Lesson {lesson.position}</span>
+                  <h2>
+                    {lesson.position}. {lesson.title}
+                  </h2>
+                </div>
 
-              <div className="stack-list">
-                {lesson.blocks.map((block) => (
-                  <article key={block.id} className="block-card">
-                    <div className="block-meta">
-                      <span className="tag-chip">{block.type}</span>
-                      <span>Position: {block.position}</span>
-                    </div>
-                    <h3>{block.title}</h3>
-                    <p>{block.content}</p>
-                    {block.attachment_url ? (
-                      <a href={block.attachment_url} target="_blank" rel="noreferrer">
-                        Attachment
-                      </a>
-                    ) : null}
-                    {["practice", "test"].includes(block.type) ? (
-                      <div className="code-submission">
-                        <label htmlFor={`solution-${block.id}`}>Solution code</label>
-                        <textarea
-                          id={`solution-${block.id}`}
-                          aria-label={`Solution code for ${block.title}`}
-                          className="code-editor"
-                          rows={10}
-                          value={solutions[block.id] || ""}
-                          onChange={(event) => handleSolutionChange(block.id, event.target.value)}
-                          placeholder="function solve() {&#10;  return true;&#10;}"
-                        />
-                        <div className="action-row">
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            disabled={submissionState[block.id]?.submitting}
-                            onClick={() => handleSubmitSolution(block.id)}
-                          >
-                            {submissionState[block.id]?.submitting ? "Submitting..." : "Submit solution"}
-                          </button>
-                          {submissionState[block.id]?.error ? (
-                            <p className="error">{submissionState[block.id].error}</p>
-                          ) : null}
-                          {submissionState[block.id]?.submission ? (
-                            <p className="success">
-                              {submissionState[block.id].submission.result_message}
-                            </p>
+                <div className="lesson-stream">
+                  {lesson.blocks.map((block) => {
+                    const isCodeBlock = ["practice", "test"].includes(block.type);
+                    const blockState = submissionState[block.id] || {};
+
+                    return (
+                      <article key={block.id} className={`learning-block ${isCodeBlock ? "with-editor" : ""}`}>
+                        <div className="block-meta">
+                          <span className="tag-chip">{block.type}</span>
+                          <span>Step {block.position}</span>
+                        </div>
+                        <div className="block-copy">
+                          <h3>{block.title}</h3>
+                          <p>{block.content}</p>
+                          {block.attachment_url ? (
+                            <a href={block.attachment_url} target="_blank" rel="noreferrer">
+                              Attachment
+                            </a>
                           ) : null}
                         </div>
-                      </div>
-                    ) : null}
-                  </article>
-                ))}
-              </div>
+
+                        {isCodeBlock ? (
+                          <div className="code-submission">
+                            <div className="editor-shell">
+                              <div className="editor-toolbar">
+                                <label htmlFor={`solution-${block.id}`}>Solution code</label>
+                                <span>JavaScript</span>
+                              </div>
+                              <textarea
+                                id={`solution-${block.id}`}
+                                aria-label={`Solution code for ${block.title}`}
+                                className="code-editor"
+                                rows={10}
+                                value={solutions[block.id] || ""}
+                                onChange={(event) => handleSolutionChange(block.id, event.target.value)}
+                                placeholder="function solve() {&#10;  return true;&#10;}"
+                              />
+                            </div>
+
+                            <div className="submission-panel" aria-live="polite">
+                              <button
+                                type="button"
+                                className="secondary-button submit-button"
+                                disabled={blockState.submitting}
+                                onClick={() => handleSubmitSolution(block.id)}
+                              >
+                                {blockState.submitting ? "Submitting..." : "Submit solution"}
+                              </button>
+                              {blockState.error ? (
+                                <div className="check-result error-result">
+                                  <span>Check failed</span>
+                                  <p className="error">{blockState.error}</p>
+                                </div>
+                              ) : null}
+                              {blockState.submission ? (
+                                <div className="check-result success-result">
+                                  <span>{blockState.submission.status || "Result"}</span>
+                                  <p className="success">{blockState.submission.result_message}</p>
+                                  {blockState.submission.tests_result ? (
+                                    <div className="test-stats">
+                                      <span>Total: {blockState.submission.tests_result.total}</span>
+                                      <span>Passed: {blockState.submission.tests_result.passed}</span>
+                                      <span>Failed: {blockState.submission.tests_result.failed}</span>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                              {!blockState.error && !blockState.submission && !blockState.submitting ? (
+                                <p className="helper-text">Run your answer when the solution is ready.</p>
+                              ) : null}
+                            </div>
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              </main>
+
+              <aside className="assistant-panel" aria-label="Chat assistant">
+                <div>
+                  <span className="eyebrow">Assistant</span>
+                  <h2>Chat</h2>
+                </div>
+                <div className="assistant-placeholder">
+                  <p>Ask for a hint, explain an error, or review your approach.</p>
+                </div>
+                <div className="assistant-input-row">
+                  <input type="text" placeholder="Chat assistant coming soon" disabled />
+                  <button type="button" className="secondary-button" disabled>
+                    Send
+                  </button>
+                </div>
+              </aside>
             </div>
           </div>
         ) : null}
