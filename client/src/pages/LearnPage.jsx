@@ -15,6 +15,9 @@ export default function LearnPage() {
   const [loading, setLoading] = useState(true);
   const [solutions, setSolutions] = useState({});
   const [submissionState, setSubmissionState] = useState({});
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   const lessonSections = useMemo(() => {
     const sectionSize = 6;
@@ -147,6 +150,36 @@ export default function LearnPage() {
           submission: null
         }
       }));
+    }
+  }
+
+  async function handleChatSubmit(event) {
+    event.preventDefault();
+    if (!chatInput.trim() || isChatLoading) return;
+
+    const userText = chatInput.trim();
+    setChatInput("");
+    setChatMessages((current) => [...current, { role: "user", text: userText }]);
+    setIsChatLoading(true);
+
+    try {
+      const apiMessages = [
+        { role: "system", text: "Ты умный наставник по программированию. Помогай студенту понять материал, давай подсказки, но не пиши готовый код за него." },
+        ...chatMessages,
+        { role: "user", text: userText }
+      ];
+
+      const response = await apiRequest("/api/ai/chat", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ messages: apiMessages })
+      });
+
+      setChatMessages((current) => [...current, { role: "assistant", text: response.message.text }]);
+    } catch (requestError) {
+      setChatMessages((current) => [...current, { role: "assistant", text: `Ошибка: ${requestError.message}` }]);
+    } finally {
+      setIsChatLoading(false);
     }
   }
 
@@ -286,20 +319,40 @@ export default function LearnPage() {
                 </div>
               </main>
 
-              <aside className="assistant-panel" aria-label="Chat assistant">
+              <aside className="assistant-panel" aria-label="Chat assistant" style={{ display: "flex", flexDirection: "column" }}>
                 <div>
                   <span className="eyebrow">Assistant</span>
                   <h2>Chat</h2>
                 </div>
-                <div className="assistant-placeholder">
-                  <p>Ask for a hint, explain an error, or review your approach.</p>
+                
+                <div className="chat-history" style={{ flex: 1, overflowY: "auto", padding: "1rem 0", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  {chatMessages.length === 0 ? (
+                    <div className="assistant-placeholder">
+                      <p>Ask for a hint, explain an error, or review your approach.</p>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, index) => (
+                      <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%" }}>
+                        <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{msg.role === "user" ? "You" : "AI Assistant"}</strong>
+                        <p style={{ margin: "0.25rem 0 0 0", whiteSpace: "pre-wrap", fontSize: "0.95rem" }}>{msg.text}</p>
+                      </div>
+                    ))
+                  )}
+                  {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Typing...</div>}
                 </div>
-                <div className="assistant-input-row">
-                  <input type="text" placeholder="Chat assistant coming soon" disabled />
-                  <button type="button" className="secondary-button" disabled>
+
+                <form className="assistant-input-row" onSubmit={handleChatSubmit}>
+                  <input 
+                    type="text" 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Type your question..." 
+                    disabled={isChatLoading} 
+                  />
+                  <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim()}>
                     Send
                   </button>
-                </div>
+                </form>
               </aside>
             </div>
           </div>
