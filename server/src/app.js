@@ -4,6 +4,7 @@ import authRoutes from "./routes/authRoutes.js";
 import courseRoutes from "./routes/courseRoutes.js";
 import { config } from "./config.js";
 import { getAiStatus } from "./modules/ai.js";
+import aiRoutes from "./routes/aiRoutes.js";
 
 export const app = express();
 
@@ -76,6 +77,7 @@ app.get("/api/health", (request, response) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api", courseRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.use((error, request, response, next) => {
   if (response.headersSent) {
