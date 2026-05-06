@@ -439,7 +439,7 @@ router.post(
   }
 );
 
-router.get("/lessons/:id", optionalAuthMiddleware, async (request, response) => {
+router.get("/lessons/:id", authMiddleware, async (request, response) => {
   const lessonId = Number(request.params.id);
 
   if (!lessonId) {

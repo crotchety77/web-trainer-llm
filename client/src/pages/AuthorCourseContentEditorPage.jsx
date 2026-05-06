@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
+import ReactMarkdown from "react-markdown";
 import { clearToken, getAuthHeaders } from "../lib/auth";
 
 const emptyLesson = {
@@ -17,6 +18,12 @@ const emptyBlock = {
   attachment_url: "",
   position: 1
 };
+
+const AUTHOR_MODES = [
+  { id: 'improve_text', label: '📝 Улучшить', icon: '📝' },
+  { id: 'generate_task', label: '🎯 Задание', icon: '🎯' },
+  { id: 'structure', label: '📑 Структура', icon: '📑' },
+];
 
 function createBlockDrafts(blocks) {
   return Object.fromEntries(
@@ -81,6 +88,7 @@ export default function AuthorCourseContentEditorPage() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [activeMode, setActiveMode] = useState(null);
 
   const selectedLesson = useMemo(() => {
     return lessons.find((lesson) => lesson.id === selectedLessonId) || null;
@@ -471,8 +479,17 @@ export default function AuthorCourseContentEditorPage() {
     setIsChatLoading(true);
 
     try {
+      const editorContext = lessonDetail
+        ? `Автор редактирует урок: "${lessonDetail.title}".\nТекущие блоки урока:\n` + (lessonDetail.blocks || []).map(b => `[${b.type}] ${b.title}: ${b.content}`).join('\n')
+        : "Автор пока не выбрал урок.";
+
+      const contextMessage = {
+        role: "system",
+        text: `Контекст редактора (информация об уроке, который редактируется прямо сейчас):\n${editorContext}`
+      };
+
       const apiMessages = [
-        { role: "system", text: "Ты умный ИИ-помощник для авторов курсов по ИТ. Помогай составлять план уроков, пиши черновики лекций, предлагай практические задачи и тесты." },
+        contextMessage,
         ...chatMessages,
         { role: "user", text: userText }
       ];
@@ -480,10 +497,11 @@ export default function AuthorCourseContentEditorPage() {
       const response = await apiRequest("/api/ai/chat", {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ messages: apiMessages })
+        body: JSON.stringify({ messages: apiMessages, mode: activeMode })
       });
 
       setChatMessages((current) => [...current, { role: "assistant", text: response.message.text }]);
+      setActiveMode(null);
     } catch (requestError) {
       setChatMessages((current) => [...current, { role: "assistant", text: `Ошибка: ${requestError.message}` }]);
     } finally {
@@ -826,6 +844,28 @@ export default function AuthorCourseContentEditorPage() {
               <h2>Course chat</h2>
             </div>
             
+            <div className="chat-quick-actions" style={{ display: "flex", gap: "0.5rem", padding: "0 0.5rem", overflowX: "auto", flexShrink: 0 }}>
+              {AUTHOR_MODES.map(mode => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setActiveMode(activeMode === mode.id ? null : mode.id)}
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "0.25rem 0.5rem",
+                    borderRadius: "12px",
+                    border: "1px solid var(--border-color, #cbd5e1)",
+                    background: activeMode === mode.id ? "var(--primary-color, #0284c7)" : "transparent",
+                    color: activeMode === mode.id ? "#fff" : "inherit",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+
             <div className="chat-history" style={{ flex: 1, overflowY: "auto", padding: "1rem 0", display: "flex", flexDirection: "column", gap: "1rem" }}>
               {chatMessages.length === 0 ? (
                 <div className="author-assistant-placeholder">
@@ -835,7 +875,13 @@ export default function AuthorCourseContentEditorPage() {
                 chatMessages.map((msg, index) => (
                   <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%" }}>
                     <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{msg.role === "user" ? "You" : "AI Assistant"}</strong>
-                    <p style={{ margin: "0.25rem 0 0 0", whiteSpace: "pre-wrap", fontSize: "0.95rem" }}>{msg.text}</p>
+                    {msg.role === "assistant" ? (
+                      <div className="markdown-content" style={{ paddingTop: "0.25rem", fontSize: "0.95rem" }}>
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p style={{ margin: "0.25rem 0 0 0", whiteSpace: "pre-wrap", fontSize: "0.95rem" }}>{msg.text}</p>
+                    )}
                   </div>
                 ))
               )}

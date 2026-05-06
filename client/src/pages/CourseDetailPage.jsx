@@ -119,17 +119,35 @@ export default function CourseDetailPage() {
               <h3>Lessons</h3>
               <div className="stack-list">
                 {(course.lessons || []).map((lesson) => (
-                  <Link
-                    key={lesson.id}
-                    className="lesson-link-card"
-                    to={`/learn/${course.id}/${lesson.id}`}
-                  >
-                    <strong>
-                      {lesson.position}. {lesson.title}
-                    </strong>
-                  </Link>
+                  user ? (
+                    <Link
+                      key={lesson.id}
+                      className="lesson-link-card"
+                      to={`/learn/${course.id}/${lesson.id}`}
+                    >
+                      <strong>
+                        {lesson.position}. {lesson.title}
+                      </strong>
+                    </Link>
+                  ) : (
+                    <div
+                      key={lesson.id}
+                      className="lesson-link-card"
+                      style={{ opacity: 0.7, cursor: "not-allowed" }}
+                      title="Log in to access lesson"
+                    >
+                      <strong>
+                        {lesson.position}. {lesson.title}
+                      </strong>
+                    </div>
+                  )
                 ))}
               </div>
+              {!user && (
+                <p className="helper-text" style={{ marginTop: "1rem" }}>
+                  <Link to="/login">Log in</Link> or <Link to="/register">register</Link> to start learning.
+                </p>
+              )}
             </aside>
           </div>
         ) : null}
