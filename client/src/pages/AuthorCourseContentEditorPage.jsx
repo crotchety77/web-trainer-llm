@@ -483,21 +483,15 @@ export default function AuthorCourseContentEditorPage() {
         ? `Автор редактирует урок: "${lessonDetail.title}".\nТекущие блоки урока:\n` + (lessonDetail.blocks || []).map(b => `[${b.type}] ${b.title}: ${b.content}`).join('\n')
         : "Автор пока не выбрал урок.";
 
-      const contextMessage = {
-        role: "system",
-        text: `Контекст редактора (информация об уроке, который редактируется прямо сейчас):\n${editorContext}`
-      };
-
-      const apiMessages = [
-        contextMessage,
-        ...chatMessages,
-        { role: "user", text: userText }
-      ];
-
       const response = await apiRequest("/api/ai/chat", {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ messages: apiMessages, mode: activeMode })
+        body: JSON.stringify({ 
+          userInput: userText,
+          lessonContext: editorContext,
+          chatHistory: chatMessages,
+          mode: activeMode 
+        })
       });
 
       setChatMessages((current) => [...current, { role: "assistant", text: response.message.text }]);

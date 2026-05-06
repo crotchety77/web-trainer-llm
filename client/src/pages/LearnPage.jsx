@@ -72,7 +72,13 @@ export default function LearnPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          // Если сервер отклонил запрос из-за отсутствия токена, принудительно отправляем на логин
+          if (requestError.message === "Authorization token is required") {
+            navigate("/login");
+            return;
+          } else {
+            setError(requestError.message);
+          }
         }
       } finally {
         if (!cancelled) {
@@ -176,21 +182,15 @@ export default function LearnPage() {
         ? `Текущий урок: "${lesson.title}".\nМатериалы урока:\n` + lesson.blocks.map(b => `[${b.type}] ${b.title}: ${b.content}`).join('\n')
         : "Контекст урока пока недоступен.";
 
-      const contextMessage = {
-        role: "system",
-        text: `Контекст для ответов:\n${lessonContext}`
-      };
-
-      const apiMessages = [
-        contextMessage,
-        ...chatMessages,
-        { role: "user", text: userText }
-      ];
-
       const response = await apiRequest("/api/ai/chat", {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ messages: apiMessages, mode: activeMode })
+        body: JSON.stringify({ 
+          userInput: userText,
+          lessonContext,
+          chatHistory: chatMessages,
+          mode: activeMode 
+        })
       });
 
       setChatMessages((current) => [...current, { role: "assistant", text: response.message.text }]);

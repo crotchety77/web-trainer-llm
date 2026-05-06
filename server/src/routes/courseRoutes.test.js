@@ -93,13 +93,21 @@ describe("course routes", () => {
         ]
       });
 
-    const response = await request(app).get("/api/lessons/10");
+    const token = createToken({
+      id: 7,
+      email: "student@example.com",
+      role: "student"
+    });
+
+    const response = await request(app)
+      .get("/api/lessons/10")
+      .set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.lesson.blocks.map((block) => block.type)).toEqual(["lecture", "practice"]);
   });
 
-  it("forbids access to an unpublished lesson for anonymous users", async () => {
+  it("forbids access to an unpublished lesson for non-authors", async () => {
     pool.query.mockResolvedValueOnce({
       rows: [
         {
@@ -114,7 +122,15 @@ describe("course routes", () => {
       ]
     });
 
-    const response = await request(app).get("/api/lessons/10");
+    const token = createToken({
+      id: 7,
+      email: "student@example.com",
+      role: "student"
+    });
+
+    const response = await request(app)
+      .get("/api/lessons/10")
+      .set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(403);
     expect(response.body.message).toBe("You do not have access to this lesson");
