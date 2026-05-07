@@ -836,7 +836,8 @@ textarea {
 
 .author-lesson-bar button,
 .author-create-block button[type="submit"],
-.author-block-editor-header button {
+.author-block-editor-header button,
+.author-block-editor .action-row button[type="submit"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;

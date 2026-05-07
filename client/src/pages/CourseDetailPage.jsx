@@ -100,15 +100,21 @@ export default function CourseDetailPage() {
 
               {user?.role === "student" ? (
                 <div className="action-row">
-                  <button type="button" onClick={handleEnroll} disabled={course.is_enrolled}>
-                    {course.is_enrolled ? "Already enrolled" : "Enroll in course"}
+                  <button
+                    type="button"
+                    className="primary-link-button"
+                    onClick={handleEnroll}
+                    disabled={course.is_enrolled}
+                    style={course.is_enrolled ? { opacity: 0.7, cursor: "not-allowed" } : { cursor: "pointer" }}
+                  >
+                    {course.is_enrolled ? "Вы записаны" : "Записаться на курс"}
                   </button>
-                  {course.lessons?.[0] ? (
+                  {course.is_enrolled && course.lessons?.[0] ? (
                     <Link
                       className="secondary-link-button"
                       to={`/learn/${course.id}/${course.lessons[0].id}`}
                     >
-                      Start learning
+                      Продолжить обучение
                     </Link>
                   ) : null}
                 </div>
@@ -118,8 +124,11 @@ export default function CourseDetailPage() {
             <aside className="sidebar-panel">
               <h3>Lessons</h3>
               <div className="stack-list">
-                {(course.lessons || []).map((lesson) => (
-                  user ? (
+                {(course.lessons || []).map((lesson) => {
+                  // Разрешаем доступ авторам или студентам, которые уже записались
+                  const canAccess = user && (user.role === "author" || course.is_enrolled);
+                  
+                  return canAccess ? (
                     <Link
                       key={lesson.id}
                       className="lesson-link-card"
@@ -134,14 +143,14 @@ export default function CourseDetailPage() {
                       key={lesson.id}
                       className="lesson-link-card"
                       style={{ opacity: 0.7, cursor: "not-allowed" }}
-                      title="Log in to access lesson"
+                      title={user ? "Сначала запишитесь на курс" : "Log in to access lesson"}
                     >
                       <strong>
                         {lesson.position}. {lesson.title}
                       </strong>
                     </div>
-                  )
-                ))}
+                  );
+                })}
               </div>
               {!user && (
                 <p className="helper-text" style={{ marginTop: "1rem" }}>

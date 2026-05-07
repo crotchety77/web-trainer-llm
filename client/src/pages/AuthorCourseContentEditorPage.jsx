@@ -16,7 +16,8 @@ const emptyBlock = {
   title: "",
   content: "",
   attachment_url: "",
-  position: 1
+  position: 1,
+  quiz_data: { quiz_type: "single", options: [] }
 };
 
 const AUTHOR_MODES = [
@@ -27,16 +28,22 @@ const AUTHOR_MODES = [
 
 function createBlockDrafts(blocks) {
   return Object.fromEntries(
-    blocks.map((block) => [
-      block.id,
-      {
-        type: block.type,
-        title: block.title,
-        content: block.content,
-        attachment_url: block.attachment_url,
-        position: block.position
-      }
-    ])
+    blocks.map((block) => {
+      const qData = block.quiz_data && Array.isArray(block.quiz_data.options)
+        ? block.quiz_data
+        : { quiz_type: "single", options: [] };
+      return [
+        block.id,
+        {
+          type: block.type,
+          title: block.title,
+          content: block.content,
+          attachment_url: block.attachment_url,
+          position: block.position,
+          quiz_data: qData
+        }
+      ];
+    })
   );
 }
 
@@ -82,6 +89,8 @@ export default function AuthorCourseContentEditorPage() {
   const [lessonDropTargetId, setLessonDropTargetId] = useState(null);
   const [draggedBlockId, setDraggedBlockId] = useState(null);
   const [blockDropTargetId, setBlockDropTargetId] = useState(null);
+  const [draggedOptionIdx, setDraggedOptionIdx] = useState(null);
+  const [optionDropTargetIdx, setOptionDropTargetIdx] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -290,6 +299,29 @@ export default function AuthorCourseContentEditorPage() {
     }
   }
 
+  async function handleLessonDelete() {
+    if (!selectedLesson) return;
+    if (!window.confirm("Вы уверены, что хотите удалить этот урок? Все блоки внутри него будут безвозвратно удалены.")) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    try {
+      await apiRequest(`/api/lessons/${selectedLesson.id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+
+      setLessons((current) => current.filter((l) => l.id !== selectedLesson.id));
+      setSelectedLessonId(null);
+      setMessage("Lesson deleted.");
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
   async function handleNewBlockCreate(event) {
     event.preventDefault();
     if (!selectedLesson) {
@@ -345,6 +377,32 @@ export default function AuthorCourseContentEditorPage() {
       setBlockDrafts(createBlockDrafts(lessonResponse.lesson.blocks || []));
       setActiveBlockId(blockId);
       setMessage("Block updated.");
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  async function handleBlockDelete(blockId) {
+    if (!window.confirm("Вы уверены, что хотите удалить этот блок? Восстановить его будет невозможно.")) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    try {
+      await apiRequest(`/api/blocks/${blockId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+      const lessonResponse = await apiRequest(`/api/lessons/${selectedLesson.id}`, {
+        headers: getAuthHeaders()
+      });
+
+      setLessonDetail(lessonResponse.lesson);
+      setBlockDrafts(createBlockDrafts(lessonResponse.lesson.blocks || []));
+      setActiveBlockId(null);
+      setMessage("Block deleted.");
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -450,7 +508,8 @@ export default function AuthorCourseContentEditorPage() {
               title: draft.title,
               content: draft.content,
               attachment_url: draft.attachment_url,
-              position: block.position
+              position: block.position,
+              quiz_data: draft.quiz_data
             })
           });
         })
@@ -467,6 +526,27 @@ export default function AuthorCourseContentEditorPage() {
         // Keep the original error visible; the next manual action can retry loading.
       }
     }
+  }
+
+  function handleOptionDrop(targetIdx) {
+    if (draggedOptionIdx === null || draggedOptionIdx === targetIdx || !selectedBlock) {
+      setDraggedOptionIdx(null);
+      setOptionDropTargetIdx(null);
+      return;
+    }
+
+    const currentOptions = blockDrafts[selectedBlock.id]?.quiz_data?.options || [];
+    const nextOptions = [...currentOptions];
+    const [movedItem] = nextOptions.splice(draggedOptionIdx, 1);
+    nextOptions.splice(targetIdx, 0, movedItem);
+
+    updateBlockDraft(selectedBlock.id, "quiz_data", {
+      ...(blockDrafts[selectedBlock.id]?.quiz_data || {}),
+      options: nextOptions
+    });
+
+    setDraggedOptionIdx(null);
+    setOptionDropTargetIdx(null);
   }
 
   async function handleChatSubmit(event) {
@@ -608,20 +688,6 @@ export default function AuthorCourseContentEditorPage() {
                   required
                 />
               </label>
-              <label>
-                <span>Position</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={createLessonForm.position}
-                  onChange={(event) =>
-                    setCreateLessonForm((current) => ({
-                      ...current,
-                      position: Number(event.target.value) || 1
-                    }))
-                  }
-                />
-              </label>
               <button type="submit">Add lesson</button>
             </form>
           </aside>
@@ -634,31 +700,29 @@ export default function AuthorCourseContentEditorPage() {
                     <span className="eyebrow">Selected lesson</span>
                     <h2>{selectedLesson.title}</h2>
                   </div>
-                  <label>
-                    <span>Title</span>
-                    <input
-                      value={lessonForm.title}
-                      onChange={(event) =>
-                        setLessonForm((current) => ({ ...current, title: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span>Position</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={lessonForm.position}
-                      onChange={(event) =>
-                        setLessonForm((current) => ({
-                          ...current,
-                          position: Number(event.target.value) || 1
-                        }))
-                      }
-                    />
-                  </label>
-                  <button type="submit">Save lesson</button>
+                  <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}>
+                    <label style={{ flex: 1, marginBottom: 0 }}>
+                      <span style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.85rem", fontWeight: "600" }}>Title</span>
+                      <input
+                        value={lessonForm.title}
+                        onChange={(event) =>
+                          setLessonForm((current) => ({ ...current, title: event.target.value }))
+                        }
+                        required
+                        style={{ width: "100%" }}
+                      />
+                    </label>
+                    <button type="submit" style={{ height: "fit-content" }}>Save lesson</button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={handleLessonDelete}
+                      style={{ height: "fit-content", backgroundColor: "#ec4899", color: "#fff", borderColor: "#ec4899" }}
+                      title="Удалить урок со всеми блоками"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </form>
 
                 <form className="author-create-block" onSubmit={handleNewBlockCreate}>
@@ -767,7 +831,6 @@ export default function AuthorCourseContentEditorPage() {
                           <span className="eyebrow">Editing block #{selectedBlock.id}</span>
                           <h3>{blockDrafts[selectedBlock.id]?.title || selectedBlock.title}</h3>
                         </div>
-                        <button type="submit">Save changes</button>
                       </div>
 
                       <div className="block-type-picker" role="group" aria-label="Block type">
@@ -792,17 +855,6 @@ export default function AuthorCourseContentEditorPage() {
                           />
                         </label>
                         <label>
-                          <span>Position</span>
-                          <input
-                            type="number"
-                            min="1"
-                            value={blockDrafts[selectedBlock.id]?.position || 1}
-                            onChange={(event) =>
-                              updateBlockDraft(selectedBlock.id, "position", Number(event.target.value) || 1)
-                            }
-                          />
-                        </label>
-                        <label>
                           <span>Attachment URL</span>
                           <input
                             value={blockDrafts[selectedBlock.id]?.attachment_url || ""}
@@ -821,6 +873,151 @@ export default function AuthorCourseContentEditorPage() {
                           onChange={(event) => updateBlockDraft(selectedBlock.id, "content", event.target.value)}
                         />
                       </label>
+
+                      {["test", "practice"].includes(blockDrafts[selectedBlock.id]?.type) && (
+                        <div className="author-quiz-editor" style={{ marginTop: "1rem", padding: "1.5rem", border: "1px solid var(--border-color, #cbd5e1)", borderRadius: "8px", background: "#fff" }}>
+                          <div className="author-panel-header" style={{ marginBottom: "1rem" }}>
+                            <span className="eyebrow">Interactive Task</span>
+                            <h4>Опрос / Тестирование</h4>
+                          </div>
+                          
+                          <label style={{ display: "block", marginBottom: "1.5rem" }}>
+                            <span style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--text-muted, #64748b)" }}>Тип выбора</span>
+                            <select
+                              value={blockDrafts[selectedBlock.id]?.quiz_data?.quiz_type || "single"}
+                              onChange={(e) => updateBlockDraft(selectedBlock.id, "quiz_data", {
+                                ...(blockDrafts[selectedBlock.id]?.quiz_data || {}),
+                                quiz_type: e.target.value
+                              })}
+                              style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid #cbd5e1" }}
+                            >
+                              <option value="single">Одиночный (Радиокнопки)</option>
+                              <option value="multiple">Множественный (Чекбоксы)</option>
+                            </select>
+                          </label>
+
+                          <div className="quiz-options-list">
+                            <span style={{ display: "block", marginBottom: "0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--text-muted, #64748b)" }}>Варианты ответов</span>
+                            {(blockDrafts[selectedBlock.id]?.quiz_data?.options || []).map((opt, idx) => (
+                              <div 
+                                key={idx} 
+                                className="quiz-option-item" 
+                                draggable
+                                onDragStart={(event) => {
+                                  event.dataTransfer.effectAllowed = "move";
+                                  setDraggedOptionIdx(idx);
+                                }}
+                                onDragEnter={(event) => {
+                                  event.preventDefault();
+                                  if (draggedOptionIdx !== null && draggedOptionIdx !== idx) {
+                                    setOptionDropTargetIdx(idx);
+                                  }
+                                }}
+                                onDragOver={(event) => {
+                                  event.preventDefault();
+                                  event.dataTransfer.dropEffect = "move";
+                                }}
+                                onDragLeave={() => {
+                                  if (optionDropTargetIdx === idx) {
+                                    setOptionDropTargetIdx(null);
+                                  }
+                                }}
+                                onDrop={(event) => {
+                                  event.preventDefault();
+                                  handleOptionDrop(idx);
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedOptionIdx(null);
+                                  setOptionDropTargetIdx(null);
+                                }}
+                                style={{ 
+                                  display: "grid", 
+                                  gridTemplateColumns: "auto auto 1fr 1fr auto", 
+                                  gap: "0.75rem", 
+                                  alignItems: "center", 
+                                  marginBottom: "0.75rem", 
+                                  padding: "0.75rem", 
+                                  background: idx === optionDropTargetIdx ? "#eaf2ff" : "var(--surface-color, #f8fafc)", 
+                                  borderRadius: "6px", 
+                                  border: `1px solid ${idx === optionDropTargetIdx ? "#0b63f6" : "#e2e8f0"}`,
+                                  opacity: idx === draggedOptionIdx ? 0.5 : 1,
+                                  transition: "all 0.2s ease"
+                                }}
+                              >
+                                <div style={{ cursor: "grab", color: "#94a3b8", paddingRight: "4px", userSelect: "none" }} title="Перетащить">⋮⋮</div>
+                                <input
+                                  type={blockDrafts[selectedBlock.id]?.quiz_data?.quiz_type === "multiple" ? "checkbox" : "radio"}
+                                  checked={opt.is_correct || false}
+                                  onChange={(e) => {
+                                    const newOptions = [...(blockDrafts[selectedBlock.id]?.quiz_data?.options || [])];
+                                    if (blockDrafts[selectedBlock.id]?.quiz_data?.quiz_type === "single") {
+                                       newOptions.forEach(o => o.is_correct = false);
+                                    }
+                                    newOptions[idx].is_correct = e.target.checked;
+                                    updateBlockDraft(selectedBlock.id, "quiz_data", {
+                                      ...(blockDrafts[selectedBlock.id]?.quiz_data || {}),
+                                      options: newOptions
+                                    });
+                                  }}
+                                  title="Отметить как правильный"
+                                  style={{ width: "1.2rem", height: "1.2rem", cursor: "pointer" }}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Текст ответа"
+                                  value={opt.text || ""}
+                                  onChange={(e) => {
+                                    const newOptions = [...(blockDrafts[selectedBlock.id]?.quiz_data?.options || [])];
+                                    newOptions[idx].text = e.target.value;
+                                    updateBlockDraft(selectedBlock.id, "quiz_data", { ...(blockDrafts[selectedBlock.id]?.quiz_data || {}), options: newOptions });
+                                  }}
+                                  style={{ padding: "0.5rem", borderRadius: "4px", border: "1px solid #cbd5e1", width: "100%" }}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Подсказка (если выберут ошибку)"
+                                  value={opt.hint || ""}
+                                  onChange={(e) => {
+                                    const newOptions = [...(blockDrafts[selectedBlock.id]?.quiz_data?.options || [])];
+                                    newOptions[idx].hint = e.target.value;
+                                    updateBlockDraft(selectedBlock.id, "quiz_data", { ...(blockDrafts[selectedBlock.id]?.quiz_data || {}), options: newOptions });
+                                  }}
+                                  style={{ padding: "0.5rem", borderRadius: "4px", border: "1px solid #cbd5e1", width: "100%" }}
+                                />
+                                <button type="button" className="secondary-button" onClick={() => {
+                                   const newOptions = blockDrafts[selectedBlock.id].quiz_data.options.filter((_, i) => i !== idx);
+                                   updateBlockDraft(selectedBlock.id, "quiz_data", { ...(blockDrafts[selectedBlock.id]?.quiz_data || {}), options: newOptions });
+                                }} style={{ padding: "0.5rem", color: "var(--error-color, #ef4444)", borderColor: "#e2e8f0" }} title="Удалить вариант">✕</button>
+                              </div>
+                            ))}
+                            <button type="button" className="secondary-button" onClick={() => {
+                              const currentData = blockDrafts[selectedBlock.id]?.quiz_data || { quiz_type: 'single', options: [] };
+                              const safeOptions = Array.isArray(currentData.options) ? currentData.options : [];
+                              updateBlockDraft(selectedBlock.id, "quiz_data", {
+                                ...currentData,
+                                options: [...safeOptions, { text: "", is_correct: false, hint: "" }]
+                              });
+                            }} style={{ marginTop: "0.5rem" }}>+ Добавить вариант</button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="action-row" style={{ marginTop: "1.5rem" }}>
+                        <button
+                          type="submit"
+                        >
+                          Save changes
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => handleBlockDelete(selectedBlock.id)}
+                          style={{ backgroundColor: "#ec4899", color: "#fff", borderColor: "#ec4899" }}
+                          title="Удалить блок"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </form>
                   ) : null}
                 </div>

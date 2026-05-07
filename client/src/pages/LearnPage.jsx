@@ -27,6 +27,7 @@ export default function LearnPage() {
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [activeMode, setActiveMode] = useState(null);
+  const [quizAnswers, setQuizAnswers] = useState({});
 
   const lessonSections = useMemo(() => {
     const sectionSize = 6;
@@ -69,6 +70,17 @@ export default function LearnPage() {
         if (!cancelled) {
           setLessons(lessonsResponse.lessons || []);
           setLesson(lessonResponse.lesson);
+
+          // Восстанавливаем ответы на опросы из БД
+          const initialQuizAnswers = {};
+          (lessonResponse.lesson.blocks || []).forEach(b => {
+             if (b.last_quiz_answers) {
+                initialQuizAnswers[b.id] = b.last_quiz_answers;
+             }
+          });
+          if (Object.keys(initialQuizAnswers).length > 0) {
+            setQuizAnswers((current) => ({ ...current, ...initialQuizAnswers }));
+          }
         }
       } catch (requestError) {
         if (!cancelled) {
@@ -97,6 +109,70 @@ export default function LearnPage() {
   function handleLogout() {
     clearToken();
     navigate("/login");
+  }
+
+  async function handleCompleteBlock(blockId) {
+    if (!user) return;
+    try {
+      await apiRequest(`/api/blocks/${blockId}/complete`, {
+        method: "POST",
+        headers: getAuthHeaders()
+      });
+      setLesson((current) => ({
+        ...current,
+        blocks: current.blocks.map((b) => (b.id === blockId ? { ...b, is_completed: true } : b))
+      }));
+    } catch (requestError) {
+      console.error("Failed to mark block as completed:", requestError);
+    }
+  }
+
+  async function handleSubmitQuiz(blockId) {
+    const answers = quizAnswers[blockId] || [];
+    
+    setSubmissionState((current) => ({
+      ...current,
+      [blockId]: {
+        submitting: true,
+        error: "",
+        submission: null,
+        hint: null
+      }
+    }));
+
+    try {
+      const response = await apiRequest(`/api/blocks/${blockId}/submit`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ answers })
+      });
+
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: {
+          submitting: false,
+          error: "",
+          submission: response.attempt,
+          hint: response.hint || null
+        }
+      }));
+
+      if (response.attempt && response.attempt.is_correct) {
+        setLesson((current) => ({
+          ...current,
+          blocks: current.blocks.map((b) => (b.id === blockId ? { ...b, is_completed: true } : b))
+        }));
+      }
+    } catch (requestError) {
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: {
+          submitting: false,
+          error: requestError.message,
+          submission: null
+        }
+      }));
+    }
   }
 
   function handleSolutionChange(blockId, value) {
@@ -156,6 +232,14 @@ export default function LearnPage() {
           submission: response.submission
         }
       }));
+
+      // Автоматически помечаем задание как выполненное в UI, если код прошел проверку успешно
+      if (response.submission && ["accepted", "passed"].includes(response.submission.status)) {
+        setLesson((current) => ({
+          ...current,
+          blocks: current.blocks.map((b) => (b.id === blockId ? { ...b, is_completed: true } : b))
+        }));
+      }
     } catch (requestError) {
       setSubmissionState((current) => ({
         ...current,
@@ -263,12 +347,18 @@ export default function LearnPage() {
                   {lesson.blocks.map((block) => {
                     const isCodeBlock = ["practice", "test"].includes(block.type);
                     const blockState = submissionState[block.id] || {};
+                    const isCompleted = block.is_completed;
 
                     return (
-                      <article key={block.id} className={`learning-block ${isCodeBlock ? "with-editor" : ""}`}>
+                      <article key={block.id} className={`learning-block ${isCodeBlock ? "with-editor" : ""} ${isCompleted ? "completed-block" : ""}`} style={isCompleted ? { borderLeft: '4px solid #10b981', background: 'rgba(16, 185, 129, 0.05)' } : {}}>
                         <div className="block-meta">
                           <span className="tag-chip">{block.type}</span>
                           <span>Step {block.position}</span>
+                          {isCompleted && (
+                            <span style={{ color: '#10b981', marginLeft: 'auto', fontWeight: 'bold' }}>
+                              ✓ Выполнено
+                            </span>
+                          )}
                         </div>
                         <div className="block-copy">
                           <h3>{block.title}</h3>
@@ -280,7 +370,55 @@ export default function LearnPage() {
                           ) : null}
                         </div>
 
-                        {isCodeBlock ? (
+                        {!isCodeBlock && !isCompleted && user && (
+                          <div className="block-actions" style={{ marginTop: '1rem' }}>
+                            <button type="button" className="secondary-button" onClick={() => handleCompleteBlock(block.id)}>
+                              Отметить как прочитанное
+                            </button>
+                          </div>
+                        )}
+
+                        {block.quiz_data && block.quiz_data.options && block.quiz_data.options.length > 0 ? (
+                          <div className="quiz-renderer" style={{ marginTop: '1.5rem', background: '#fff', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--border-color, #cbd5e1)' }}>
+                            <h4 style={{ marginBottom: '1rem' }}>Опрос</h4>
+                            <form onSubmit={(e) => { e.preventDefault(); handleSubmitQuiz(block.id); }}>
+                              {block.quiz_data.options.map((opt, idx) => {
+                                const isMultiple = block.quiz_data.quiz_type === "multiple";
+                                const isChecked = (quizAnswers[block.id] || []).includes(idx);
+                                return (
+                                  <label key={idx} style={{ display: 'block', marginBottom: '0.75rem', cursor: isCompleted ? 'default' : 'pointer', padding: '0.75rem', borderRadius: '6px', border: `1px solid ${isChecked ? 'var(--primary-color, #0284c7)' : '#e2e8f0'}`, background: isChecked ? 'var(--primary-light, #e0f2fe)' : '#f8fafc' }}>
+                                    <input 
+                                      type={isMultiple ? "checkbox" : "radio"}
+                                      name={`quiz-${block.id}`}
+                                      checked={isChecked}
+                                      disabled={isCompleted || blockState.submitting}
+                                      onChange={(e) => {
+                                        if (isMultiple) {
+                                          setQuizAnswers(cur => {
+                                            const prev = cur[block.id] || [];
+                                            return { ...cur, [block.id]: e.target.checked ? [...prev, idx] : prev.filter(i => i !== idx) };
+                                          });
+                                        } else {
+                                          setQuizAnswers(cur => ({ ...cur, [block.id]: [idx] }));
+                                        }
+                                      }}
+                                      style={{ marginRight: '0.75rem', accentColor: 'var(--primary-color)' }}
+                                    />
+                                    {opt.text}
+                                  </label>
+                                );
+                              })}
+                              <div className="submission-panel" aria-live="polite" style={{ marginTop: '1rem' }}>
+                                <button type="submit" className="secondary-button submit-button" disabled={blockState.submitting || isCompleted || !user || (quizAnswers[block.id] || []).length === 0}>
+                                  {blockState.submitting ? "Проверка..." : isCompleted ? "Пройдено" : user ? "Ответить" : "Войдите для ответа"}
+                                </button>
+                                {blockState.error && <div className="check-result error-result" style={{ marginTop: '0.5rem' }}><span>Ошибка</span><p className="error">{blockState.error}</p></div>}
+                                {blockState.hint && <div className="check-result error-result" style={{ marginTop: '0.5rem' }}><span>Неверно</span><p className="error">{blockState.hint}</p></div>}
+                                {blockState.submission && blockState.submission.is_correct && <div className="check-result success-result" style={{ marginTop: '0.5rem' }}><span>Успех</span><p className="success">Правильный ответ!</p></div>}
+                              </div>
+                            </form>
+                          </div>
+                        ) : isCodeBlock ? (
                           <div className="code-submission">
                             <div className="editor-shell">
                               <div className="editor-toolbar">
