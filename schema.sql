@@ -1,6 +1,8 @@
 DROP TABLE IF EXISTS submissions CASCADE;
 DROP TABLE IF EXISTS lesson_blocks CASCADE;
 DROP TABLE IF EXISTS enrollments CASCADE;
+DROP TABLE IF EXISTS user_quiz_attempts CASCADE;
+DROP TABLE IF EXISTS user_course_progress CASCADE;
 DROP TABLE IF EXISTS lessons CASCADE;
 DROP TABLE IF EXISTS courses CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
@@ -40,6 +42,7 @@ CREATE TABLE lesson_blocks (
   type VARCHAR(20) NOT NULL CHECK (type IN ('lecture', 'practice', 'test')),
   title VARCHAR(255) NOT NULL,
   content TEXT NOT NULL DEFAULT '',
+  quiz_data JSONB DEFAULT '{}'::jsonb,
   attachment_url TEXT NOT NULL DEFAULT '',
   position INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -54,6 +57,25 @@ CREATE TABLE submissions (
   status VARCHAR(40) NOT NULL DEFAULT 'submitted',
   result_message TEXT NOT NULL DEFAULT '',
   tests_result JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_course_progress (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  lesson_id INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+  block_id INTEGER NOT NULL REFERENCES lesson_blocks(id) ON DELETE CASCADE,
+  completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, block_id)
+);
+
+CREATE TABLE user_quiz_attempts (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  block_id INTEGER NOT NULL REFERENCES lesson_blocks(id) ON DELETE CASCADE,
+  answers JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_correct BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
+import CodeEditor from "../components/CodeEditor";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import ReactMarkdown from "react-markdown";
@@ -214,13 +215,16 @@ export default function LearnPage() {
       }
     }));
 
+    const block = lesson.blocks.find(b => b.id === blockId);
+    const language = block?.quiz_data?.language || "javascript";
+
     try {
       const response = await apiRequest(`/api/blocks/${blockId}/submissions`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
           code,
-          language: "javascript"
+          language
         })
       });
 
@@ -423,17 +427,19 @@ export default function LearnPage() {
                             <div className="editor-shell">
                               <div className="editor-toolbar">
                                 <label htmlFor={`solution-${block.id}`}>Solution code</label>
-                                <span>JavaScript</span>
+                                <span>{block.quiz_data?.language || "javascript"}</span>
                               </div>
-                              <textarea
-                                id={`solution-${block.id}`}
-                                aria-label={`Solution code for ${block.title}`}
-                                className="code-editor"
-                                rows={10}
-                                value={solutions[block.id] || ""}
-                                onChange={(event) => handleSolutionChange(block.id, event.target.value)}
-                                placeholder="function solve() {&#10;  return true;&#10;}"
-                              />
+                                <CodeEditor
+                                  value={solutions[block.id] !== undefined ? solutions[block.id] : (block.quiz_data?.placeholder_code || "")}
+                                  onChange={(val) => handleSolutionChange(block.id, val)}
+                                  language={block.quiz_data?.language || "javascript"}
+                                  height={300}
+                                />
+                                {block.quiz_data?.function_name && (
+                                  <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "0.5rem", padding: "0.5rem", background: "#f8fafc", borderRadius: "4px" }}>
+                                    💡 <strong>Подсказка:</strong> Система автоматически прочитает ввод и вызовет вашу функцию <code>{block.quiz_data.function_name}</code> с нужными аргументами.
+                                  </div>
+                                )}
                             </div>
 
                             <div className="submission-panel" aria-live="polite">
@@ -452,14 +458,34 @@ export default function LearnPage() {
                                 </div>
                               ) : null}
                               {blockState.submission ? (
-                                <div className="check-result success-result">
+                                <div className={`check-result ${blockState.submission.status === "passed" || blockState.submission.status === "accepted" ? "success-result" : "error-result"}`}>
                                   <span>{blockState.submission.status || "Result"}</span>
-                                  <p className="success">{blockState.submission.result_message}</p>
+                                  <p className={blockState.submission.status === "passed" || blockState.submission.status === "accepted" ? "success" : "error"}>{blockState.submission.result_message}</p>
                                   {blockState.submission.tests_result ? (
-                                    <div className="test-stats">
-                                      <span>Total: {blockState.submission.tests_result.total}</span>
-                                      <span>Passed: {blockState.submission.tests_result.passed}</span>
-                                      <span>Failed: {blockState.submission.tests_result.failed}</span>
+                                    <div className="test-stats" style={{ marginTop: "1rem" }}>
+                                      <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", fontWeight: "bold" }}>
+                                        <span>Всего: {blockState.submission.tests_result.total}</span>
+                                        <span style={{ color: "#10b981" }}>Успешно: {blockState.submission.tests_result.passed}</span>
+                                        <span style={{ color: "#ef4444" }}>Упало: {blockState.submission.tests_result.failed}</span>
+                                      </div>
+                                      
+                                      {(blockState.submission.tests_result.details || []).map((detail, idx) => (
+                                        <div key={idx} style={{ marginBottom: "0.5rem", padding: "0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", background: detail.passed ? "#f0fdf4" : "#fef2f2" }}>
+                                          <div style={{ fontWeight: "bold", marginBottom: "0.5rem", color: detail.passed ? "#15803d" : "#b91c1c" }}>
+                                            Тест #{idx + 1} {detail.passed ? "✓ Пройден" : "✗ Упал"}
+                                          </div>
+                                          {!detail.passed && !detail.is_hidden && (
+                                            <div style={{ fontSize: "0.85rem", display: "grid", gap: "0.5rem" }}>
+                                              <div><strong style={{ color: "#64748b" }}>Ввод (stdin):</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px" }}>{detail.input}</pre></div>
+                                              <div><strong style={{ color: "#64748b" }}>Ожидалось (stdout):</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px" }}>{detail.expected}</pre></div>
+                                              <div><strong style={{ color: "#64748b" }}>Ваш вывод:</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px", color: "#b91c1c" }}>{detail.actual}</pre></div>
+                                            </div>
+                                          )}
+                                          {!detail.passed && detail.is_hidden && (
+                                            <div style={{ fontSize: "0.85rem", color: "#64748b" }}>Скрытый тест. Детали не отображаются.</div>
+                                          )}
+                                        </div>
+                                      ))}
                                     </div>
                                   ) : null}
                                 </div>

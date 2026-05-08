@@ -5,6 +5,7 @@ import {
   optionalAuthMiddleware,
   requireRole
 } from "../middleware/authMiddleware.js";
+import { executeCodeOnPiston } from "../modules/pistonExecutor.js";
 
 const router = Router();
 const BLOCK_TYPE_ORDER = ["lecture", "practice", "test"];
@@ -50,7 +51,8 @@ function normalizeBlockPayload(body) {
     title: String(body.title || "").trim(),
     content: String(body.content || "").trim(),
     attachmentUrl: String(body.attachment_url || "").trim(),
-    position: Number(body.position) || 1
+    position: Number(body.position) || 1,
+    quizData: body.quiz_data || { quiz_type: "single", options: [] }
   };
 }
 
@@ -97,7 +99,7 @@ async function getBlockWithOwnership(blockId) {
 
 async function getBlockWithCourse(blockId) {
   const result = await pool.query(
-    `SELECT lb.id, lb.lesson_id, lb.type, lb.title, l.course_id,
+    `SELECT lb.id, lb.lesson_id, lb.type, lb.title, lb.quiz_data, l.course_id,
             c.author_id, c.is_published, c.title AS course_title
      FROM lesson_blocks lb
      JOIN lessons l ON l.id = lb.lesson_id
@@ -129,21 +131,24 @@ async function fetchLessonsForCourse(courseId) {
   return result.rows;
 }
 
-async function fetchBlocksForLesson(lessonId) {
+async function fetchBlocksForLesson(lessonId, userId = 0) {
   const result = await pool.query(
-    `SELECT id, lesson_id, type, title, content, attachment_url, position, created_at
-     FROM lesson_blocks
-     WHERE lesson_id = $1
+    `SELECT lb.id, lb.lesson_id, lb.type, lb.title, lb.content, lb.quiz_data, lb.attachment_url, lb.position, lb.created_at,
+            (ucp.id IS NOT NULL) AS is_completed,
+            (SELECT answers FROM user_quiz_attempts WHERE block_id = lb.id AND user_id = $2 AND is_correct = TRUE ORDER BY created_at DESC LIMIT 1) AS last_quiz_answers
+     FROM lesson_blocks lb
+     LEFT JOIN user_course_progress ucp ON ucp.block_id = lb.id AND ucp.user_id = $2
+     WHERE lb.lesson_id = $1
      ORDER BY
-       CASE type
+       CASE lb.type
          WHEN 'lecture' THEN 1
          WHEN 'practice' THEN 2
          WHEN 'test' THEN 3
          ELSE 4
        END ASC,
-       position ASC,
-       id ASC`,
-    [lessonId]
+       lb.position ASC,
+       lb.id ASC`,
+    [lessonId, userId]
   );
 
   return result.rows;
@@ -460,7 +465,7 @@ router.get("/lessons/:id", authMiddleware, async (request, response) => {
       return response.status(403).json({ message: "You do not have access to this lesson" });
     }
 
-    const blocks = await fetchBlocksForLesson(lessonId);
+    const blocks = await fetchBlocksForLesson(lessonId, request.user.id);
 
     return response.json({
       lesson: {
@@ -513,6 +518,33 @@ router.patch("/lessons/:id", authMiddleware, requireRole("author"), async (reque
   }
 });
 
+router.delete("/lessons/:id", authMiddleware, requireRole("author"), async (request, response) => {
+  const lessonId = Number(request.params.id);
+
+  if (!lessonId) {
+    return response.status(400).json({ message: "Invalid lesson id" });
+  }
+
+  try {
+    const lesson = await getLessonWithCourse(lessonId);
+
+    if (!lesson) {
+      return response.status(404).json({ message: "Lesson not found" });
+    }
+
+    if (lesson.author_id !== request.user.id) {
+      return response.status(403).json({ message: "You can delete only your own lessons" });
+    }
+
+    await pool.query("DELETE FROM lessons WHERE id = $1", [lessonId]);
+
+    return response.json({ message: "Lesson deleted successfully" });
+  } catch (error) {
+    console.error("[lessons/delete] Failed:", error.message);
+    return response.status(500).json({ message: "Failed to delete lesson" });
+  }
+});
+
 router.post(
   "/lessons/:lessonId/blocks",
   authMiddleware,
@@ -545,16 +577,17 @@ router.post(
       }
 
       const result = await pool.query(
-        `INSERT INTO lesson_blocks (lesson_id, type, title, content, attachment_url, position)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, lesson_id, type, title, content, attachment_url, position, created_at`,
+        `INSERT INTO lesson_blocks (lesson_id, type, title, content, attachment_url, position, quiz_data)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+         RETURNING id, lesson_id, type, title, content, attachment_url, position, quiz_data, created_at`,
         [
           lessonId,
           payload.type,
           payload.title,
           payload.content,
           payload.attachmentUrl,
-          payload.position
+          payload.position,
+          JSON.stringify(payload.quizData)
         ]
       );
 
@@ -599,16 +632,18 @@ router.patch("/blocks/:id", authMiddleware, requireRole("author"), async (reques
            title = $2,
            content = $3,
            attachment_url = $4,
-           position = $5
+           position = $5,
+           quiz_data = $7::jsonb
        WHERE id = $6
-       RETURNING id, lesson_id, type, title, content, attachment_url, position, created_at`,
+       RETURNING id, lesson_id, type, title, content, attachment_url, position, quiz_data, created_at`,
       [
         payload.type,
         payload.title,
         payload.content,
         payload.attachmentUrl,
         payload.position,
-        blockId
+        blockId,
+        JSON.stringify(payload.quizData)
       ]
     );
 
@@ -616,6 +651,33 @@ router.patch("/blocks/:id", authMiddleware, requireRole("author"), async (reques
   } catch (error) {
     console.error("[blocks/update] Failed:", error.message);
     return response.status(500).json({ message: "Failed to update block" });
+  }
+});
+
+router.delete("/blocks/:id", authMiddleware, requireRole("author"), async (request, response) => {
+  const blockId = Number(request.params.id);
+
+  if (!blockId) {
+    return response.status(400).json({ message: "Invalid block id" });
+  }
+
+  try {
+    const block = await getBlockWithOwnership(blockId);
+
+    if (!block) {
+      return response.status(404).json({ message: "Block not found" });
+    }
+
+    if (block.author_id !== request.user.id) {
+      return response.status(403).json({ message: "You can delete only your own lesson blocks" });
+    }
+
+    await pool.query("DELETE FROM lesson_blocks WHERE id = $1", [blockId]);
+
+    return response.json({ message: "Block deleted successfully" });
+  } catch (error) {
+    console.error("[blocks/delete] Failed:", error.message);
+    return response.status(500).json({ message: "Failed to delete block" });
   }
 });
 
@@ -651,13 +713,34 @@ router.post(
         return response.status(403).json({ message: "You do not have access to this lesson block" });
       }
 
-      const resultStatus = "accepted";
-      const resultMessage = "Solution submitted successfully. Automatic code checks are mocked for now.";
-      const testsResult = {
-        total: 1,
-        passed: 1,
-        failed: 0
-      };
+      let resultStatus = "accepted";
+      let resultMessage = "Solution submitted successfully. No automated tests configured.";
+      let testsResult = { total: 1, passed: 1, failed: 0 };
+
+      // Если автор настроил Test Cases
+      const quizData = block.quiz_data || {};
+      if (quizData.task_type === "code" && Array.isArray(quizData.test_cases) && quizData.test_cases.length > 0) {
+        const executionResult = await executeCodeOnPiston(
+          code,
+          language,
+          quizData.test_cases,
+          quizData.function_name
+        );
+        
+        if (executionResult) {
+           resultStatus = executionResult.status;
+           resultMessage = executionResult.result_message;
+           testsResult = executionResult.tests_result;
+        }
+      }
+
+      // Автоматическая запись на курс (если студент перешел по прямой ссылке)
+      await pool.query(
+        `INSERT INTO enrollments (student_id, course_id)
+         VALUES ($1, $2)
+         ON CONFLICT (student_id, course_id) DO NOTHING`,
+        [request.user.id, block.course_id]
+      );
 
       const result = await pool.query(
         `INSERT INTO submissions (
@@ -676,6 +759,16 @@ router.post(
         ]
       );
 
+      // Автоматическое зачисление в прогресс, если код прошел проверку
+      if (resultStatus === "passed" || resultStatus === "accepted") {
+         await pool.query(
+           `INSERT INTO user_course_progress (user_id, course_id, lesson_id, block_id)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id, block_id) DO NOTHING`,
+           [request.user.id, block.course_id, block.lesson_id, blockId]
+         );
+      }
+
       return response.status(201).json({ submission: result.rows[0] });
     } catch (error) {
       console.error("[submissions/create] Failed:", error.message);
@@ -683,5 +776,160 @@ router.post(
     }
   }
 );
+
+router.post(
+  "/blocks/:blockId/submit",
+  authMiddleware,
+  requireRole("student"),
+  async (request, response) => {
+    const blockId = Number(request.params.blockId);
+    const answers = Array.isArray(request.body.answers) ? request.body.answers.map(Number) : [];
+
+    if (!blockId) {
+      return response.status(400).json({ message: "Invalid block id" });
+    }
+
+    try {
+      const block = await getBlockWithCourse(blockId);
+
+      if (!block) {
+        return response.status(404).json({ message: "Lesson block not found" });
+      }
+
+      if (!block.is_published) {
+        return response.status(403).json({ message: "You do not have access to this lesson block" });
+      }
+
+      const passedCheck = await pool.query(
+        "SELECT id FROM user_quiz_attempts WHERE user_id = $1 AND block_id = $2 AND is_correct = TRUE",
+        [request.user.id, blockId]
+      );
+      
+      if (passedCheck.rowCount > 0) {
+         return response.status(400).json({ message: "You have already completed this quiz" });
+      }
+
+      const quizData = block.quiz_data || {};
+      const options = quizData.options || [];
+      
+      let isCorrect = true;
+      let hint = "";
+
+      if (options.length === 0) {
+         return response.status(400).json({ message: "This block does not contain a valid quiz" });
+      }
+
+      const correctIndices = options.map((opt, idx) => opt.is_correct ? idx : -1).filter(idx => idx !== -1);
+      
+      if (correctIndices.length !== answers.length || !correctIndices.every(idx => answers.includes(idx))) {
+         isCorrect = false;
+         for (const ans of answers) {
+            if (!correctIndices.includes(ans) && options[ans] && options[ans].hint) {
+               hint = options[ans].hint;
+               break;
+            }
+         }
+         if (!hint) {
+            hint = "Ваш ответ неверный. Попробуйте еще раз.";
+         }
+      }
+
+      // Автоматическая запись на курс
+      await pool.query(
+        `INSERT INTO enrollments (student_id, course_id)
+         VALUES ($1, $2)
+         ON CONFLICT (student_id, course_id) DO NOTHING`,
+        [request.user.id, block.course_id]
+      );
+
+      const result = await pool.query(
+        `INSERT INTO user_quiz_attempts (user_id, block_id, answers, is_correct)
+         VALUES ($1, $2, $3::jsonb, $4)
+         RETURNING id, user_id, block_id, answers, is_correct, created_at`,
+        [request.user.id, blockId, JSON.stringify(answers), isCorrect]
+      );
+
+      if (isCorrect) {
+         await pool.query(
+           `INSERT INTO user_course_progress (user_id, course_id, lesson_id, block_id)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id, block_id) DO NOTHING`,
+           [request.user.id, block.course_id, block.lesson_id, blockId]
+         );
+      }
+
+      return response.status(201).json({ 
+         attempt: result.rows[0],
+         hint: isCorrect ? null : hint
+      });
+    } catch (error) {
+      console.error("[blocks/submit] Failed:", error.message);
+      return response.status(500).json({ message: "Failed to submit quiz" });
+    }
+  }
+);
+
+router.post(
+  "/blocks/:blockId/complete",
+  authMiddleware,
+  requireRole("student"),
+  async (request, response) => {
+    const blockId = Number(request.params.blockId);
+
+    if (!blockId) {
+      return response.status(400).json({ message: "Invalid block id" });
+    }
+
+    try {
+      const block = await getBlockWithCourse(blockId);
+
+      if (!block) {
+        return response.status(404).json({ message: "Lesson block not found" });
+      }
+
+      if (!block.is_published) {
+        return response.status(403).json({ message: "You do not have access to this lesson block" });
+      }
+
+      await pool.query(
+        `INSERT INTO enrollments (student_id, course_id)
+         VALUES ($1, $2)
+         ON CONFLICT (student_id, course_id) DO NOTHING`,
+        [request.user.id, block.course_id]
+      );
+
+      await pool.query(
+        `INSERT INTO user_course_progress (user_id, course_id, lesson_id, block_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (user_id, block_id) DO NOTHING`,
+        [request.user.id, block.course_id, block.lesson_id, blockId]
+      );
+
+      return response.status(201).json({ message: "Block marked as completed" });
+    } catch (error) {
+      console.error("[blocks/complete] Failed:", error.message);
+      return response.status(500).json({ message: "Failed to complete block" });
+    }
+  }
+);
+
+router.get("/student/courses", authMiddleware, requireRole("student"), async (request, response) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.id, c.title, c.short_description, c.cover_image_url,
+              (SELECT COUNT(lb.id) FROM lesson_blocks lb JOIN lessons l ON l.id = lb.lesson_id WHERE l.course_id = c.id)::int AS total_blocks,
+              (SELECT COUNT(ucp.id) FROM user_course_progress ucp WHERE ucp.course_id = c.id AND ucp.user_id = $1)::int AS completed_blocks
+       FROM enrollments e
+       JOIN courses c ON c.id = e.course_id
+       WHERE e.student_id = $1
+       ORDER BY e.enrolled_at DESC`,
+      [request.user.id]
+    );
+    return response.json({ enrollments: result.rows });
+  } catch (error) {
+    console.error("[student/courses] Failed:", error.message);
+    return response.status(500).json({ message: "Failed to fetch student courses" });
+  }
+});
 
 export default router;
