@@ -4,20 +4,20 @@ import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 export default function AuthorDashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuthUser({ required: true });
+  const toast = useToast();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadMyCourses() {
       setLoading(true);
-      setError("");
 
       try {
         const data = await apiRequest("/api/my/courses", {
@@ -29,7 +29,7 @@ export default function AuthorDashboardPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          toast.error("Не удалось загрузить ваши курсы");
         }
       } finally {
         if (!cancelled) {
@@ -43,7 +43,7 @@ export default function AuthorDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [toast]);
 
   function handleLogout() {
     clearToken();
@@ -65,7 +65,6 @@ export default function AuthorDashboardPage() {
         </div>
 
         {loading ? <p>Loading your courses...</p> : null}
-        {error ? <p className="error">{error}</p> : null}
 
         <div className="course-list">
           {courses.map((course) => (

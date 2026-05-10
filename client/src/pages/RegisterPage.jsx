@@ -2,16 +2,17 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { setToken } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "student"
   });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   function handleChange(event) {
@@ -21,7 +22,6 @@ export default function RegisterPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
@@ -33,7 +33,7 @@ export default function RegisterPage() {
       setToken(data.token);
       navigate(data.user.role === "author" ? "/author/dashboard" : "/courses");
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось создать аккаунт");
     } finally {
       setLoading(false);
     }
@@ -87,9 +87,6 @@ export default function RegisterPage() {
               <option value="author">Author</option>
             </select>
           </label>
-
-          {error ? <p className="error">{error}</p> : null}
-
           <button type="submit" disabled={loading}>
             {loading ? "Creating..." : "Register"}
           </button>

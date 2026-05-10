@@ -2,14 +2,15 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { setToken } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   function handleChange(event) {
@@ -19,7 +20,6 @@ export default function LoginPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
@@ -31,7 +31,7 @@ export default function LoginPage() {
       setToken(data.token);
       navigate(data.user.role === "author" ? "/author/dashboard" : "/courses");
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось войти. Проверьте email и пароль");
     } finally {
       setLoading(false);
     }
@@ -65,9 +65,6 @@ export default function LoginPage() {
               required
             />
           </label>
-
-          {error ? <p className="error">{error}</p> : null}
-
           <button type="submit" disabled={loading}>
             {loading ? "Signing in..." : "Login"}
           </button>

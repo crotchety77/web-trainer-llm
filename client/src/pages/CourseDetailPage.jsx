@@ -4,22 +4,21 @@ import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 export default function CourseDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuthUser();
+  const toast = useToast();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadCourse() {
       setLoading(true);
-      setError("");
 
       try {
         const data = await apiRequest(`/api/courses/${id}`, {
@@ -30,7 +29,7 @@ export default function CourseDetailPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          toast.error("Не удалось загрузить курс");
         }
       } finally {
         if (!cancelled) {
@@ -44,7 +43,7 @@ export default function CourseDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, toast]);
 
   function handleLogout() {
     clearToken();
@@ -52,18 +51,15 @@ export default function CourseDetailPage() {
   }
 
   async function handleEnroll() {
-    setMessage("");
-    setError("");
-
     try {
       await apiRequest(`/api/courses/${id}/enroll`, {
         method: "POST",
         headers: getAuthHeaders()
       });
-      setMessage("You are enrolled in this course.");
+      toast.success("Вы записались на курс");
       setCourse((current) => (current ? { ...current, is_enrolled: true } : current));
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось записаться на курс");
     }
   }
 
@@ -75,8 +71,6 @@ export default function CourseDetailPage() {
     >
       <section className="course-detail-section">
         {loading ? <p>Loading course...</p> : null}
-        {error ? <p className="error">{error}</p> : null}
-        {message ? <p className="success">{message}</p> : null}
 
         {course ? (
           <div className="detail-grid">

@@ -7,6 +7,7 @@ import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import ReactMarkdown from "react-markdown";
 import { clearToken, getAuthHeaders } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 const emptyLesson = {
   title: "",
@@ -85,6 +86,7 @@ export default function AuthorCourseContentEditorPage() {
   const navigate = useNavigate();
   const params = useParams();
   const { user } = useAuthUser({ required: true });
+  const toast = useToast();
   const [courseTitle, setCourseTitle] = useState("Course content");
   const [lessons, setLessons] = useState([]);
   const [selectedLessonId, setSelectedLessonId] = useState(null);
@@ -101,8 +103,6 @@ export default function AuthorCourseContentEditorPage() {
   const [draggedOptionIdx, setDraggedOptionIdx] = useState(null);
   const [optionDropTargetIdx, setOptionDropTargetIdx] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -110,6 +110,7 @@ export default function AuthorCourseContentEditorPage() {
   const [authorTestCode, setAuthorTestCode] = useState({});
   const [authorTestResults, setAuthorTestResults] = useState({});
   const [isTestingCode, setIsTestingCode] = useState({});
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   const selectedLesson = useMemo(() => {
     return lessons.find((lesson) => lesson.id === selectedLessonId) || null;
@@ -126,7 +127,6 @@ export default function AuthorCourseContentEditorPage() {
 
     async function loadCourseContent() {
       setLoading(true);
-      setError("");
 
       try {
         const [courseResponse, lessonsResponse] = await Promise.all([
@@ -148,7 +148,7 @@ export default function AuthorCourseContentEditorPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          toast.error("Не удалось загрузить курс");
         }
       } finally {
         if (!cancelled) {
@@ -162,7 +162,7 @@ export default function AuthorCourseContentEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [params.id]);
+  }, [params.id, toast]);
 
   useEffect(() => {
     if (!selectedLessonId) {
@@ -192,7 +192,7 @@ export default function AuthorCourseContentEditorPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          toast.error("Не удалось загрузить урок");
         }
       }
     }
@@ -202,7 +202,7 @@ export default function AuthorCourseContentEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedLessonId]);
+  }, [selectedLessonId, toast]);
 
   async function reloadLessons() {
     const response = await apiRequest(`/api/courses/${params.id}/lessons`, {
@@ -245,9 +245,6 @@ export default function AuthorCourseContentEditorPage() {
 
   async function handleLessonCreate(event) {
     event.preventDefault();
-    setError("");
-    setMessage("");
-
     try {
       const response = await apiRequest(`/api/courses/${params.id}/lessons`, {
         method: "POST",
@@ -262,9 +259,9 @@ export default function AuthorCourseContentEditorPage() {
       setLessons((current) => [...current, createdLesson].sort((a, b) => a.position - b.position));
       setSelectedLessonId(createdLesson.id);
       setCreateLessonForm(emptyLesson);
-      setMessage("Lesson created.");
+      toast.success("Урок успешно создан");
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось создать урок");
     }
   }
 
@@ -273,9 +270,6 @@ export default function AuthorCourseContentEditorPage() {
     if (!selectedLesson) {
       return;
     }
-
-    setError("");
-    setMessage("");
 
     try {
       const response = await apiRequest(`/api/lessons/${selectedLesson.id}`, {
@@ -289,20 +283,21 @@ export default function AuthorCourseContentEditorPage() {
           .map((item) => (item.id === selectedLesson.id ? response.lesson : item))
           .sort((a, b) => a.position - b.position)
       );
-      setMessage("Lesson updated.");
+      toast.success("Урок сохранён");
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось сохранить урок");
     }
   }
 
   async function handleLessonDelete() {
     if (!selectedLesson) return;
-    if (!window.confirm("Вы уверены, что хотите удалить этот урок? Все блоки внутри него будут безвозвратно удалены.")) {
+    if (pendingDelete?.type !== "lesson" || pendingDelete.id !== selectedLesson.id) {
+      setPendingDelete({ type: "lesson", id: selectedLesson.id });
+      toast.warning("Нажмите удалить ещё раз, чтобы подтвердить");
       return;
     }
 
-    setError("");
-    setMessage("");
+    setPendingDelete(null);
 
     try {
       await apiRequest(`/api/lessons/${selectedLesson.id}`, {
@@ -312,9 +307,9 @@ export default function AuthorCourseContentEditorPage() {
 
       setLessons((current) => current.filter((l) => l.id !== selectedLesson.id));
       setSelectedLessonId(null);
-      setMessage("Lesson deleted.");
+      toast.success("Урок удалён");
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось удалить урок");
     }
   }
 
@@ -323,9 +318,6 @@ export default function AuthorCourseContentEditorPage() {
     if (!selectedLesson) {
       return;
     }
-
-    setError("");
-    setMessage("");
 
     try {
       const nextPosition =
@@ -349,16 +341,13 @@ export default function AuthorCourseContentEditorPage() {
       setBlockDrafts(createBlockDrafts(lessonResponse.lesson.blocks || []));
       setActiveBlockId(response.block.id);
       setNewBlockForm(emptyBlock);
-      setMessage("Block created.");
+      toast.success("Блок создан");
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось создать блок");
     }
   }
 
   async function handleBlockUpdate(blockId) {
-    setError("");
-    setMessage("");
-
     try {
       await apiRequest(`/api/blocks/${blockId}`, {
         method: "PATCH",
@@ -372,19 +361,20 @@ export default function AuthorCourseContentEditorPage() {
       setLessonDetail(lessonResponse.lesson);
       setBlockDrafts(createBlockDrafts(lessonResponse.lesson.blocks || []));
       setActiveBlockId(blockId);
-      setMessage("Block updated.");
+      toast.success("Блок сохранён");
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось сохранить блок");
     }
   }
 
   async function handleBlockDelete(blockId) {
-    if (!window.confirm("Вы уверены, что хотите удалить этот блок? Восстановить его будет невозможно.")) {
+    if (pendingDelete?.type !== "block" || pendingDelete.id !== blockId) {
+      setPendingDelete({ type: "block", id: blockId });
+      toast.warning("Нажмите удалить ещё раз, чтобы подтвердить");
       return;
     }
 
-    setError("");
-    setMessage("");
+    setPendingDelete(null);
 
     try {
       await apiRequest(`/api/blocks/${blockId}`, {
@@ -398,9 +388,9 @@ export default function AuthorCourseContentEditorPage() {
       setLessonDetail(lessonResponse.lesson);
       setBlockDrafts(createBlockDrafts(lessonResponse.lesson.blocks || []));
       setActiveBlockId(null);
-      setMessage("Block deleted.");
+      toast.success("Блок удалён");
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось удалить блок");
     }
   }
 
@@ -434,6 +424,11 @@ export default function AuthorCourseContentEditorPage() {
       });
 
       setAuthorTestResults((prev) => ({ ...prev, [blockId]: response }));
+      if (["passed", "accepted"].includes(response.status)) {
+        toast.success("Тесты успешно пройдены");
+      } else {
+        toast.error("Тесты не пройдены");
+      }
     } catch (err) {
       setAuthorTestResults((prev) => ({
         ...prev,
@@ -443,6 +438,7 @@ export default function AuthorCourseContentEditorPage() {
           tests_result: null
         }
       }));
+      toast.error("Ошибка выполнения кода");
     } finally {
       setIsTestingCode((prev) => ({ ...prev, [blockId]: false }));
     }
@@ -463,8 +459,7 @@ export default function AuthorCourseContentEditorPage() {
     setLessonForm((current) =>
       selectedLessonId ? { ...current, position: reorderedLessons.find((lesson) => lesson.id === selectedLessonId)?.position || current.position } : current
     );
-    setError("");
-    setMessage("Saving lesson order...");
+    toast.info("Сохраняем порядок уроков...");
 
     try {
       await Promise.all(
@@ -479,11 +474,10 @@ export default function AuthorCourseContentEditorPage() {
           })
         )
       );
-      setMessage("Lesson order saved.");
+      toast.success("Порядок уроков сохранён");
     } catch (requestError) {
       setLessons(previousLessons);
-      setError(requestError.message);
-      setMessage("");
+      toast.error("Не удалось сохранить порядок уроков");
       try {
         await reloadLessons();
       } catch {
@@ -519,8 +513,7 @@ export default function AuthorCourseContentEditorPage() {
         ])
       )
     }));
-    setError("");
-    setMessage("Saving block order...");
+    toast.info("Сохраняем порядок блоков...");
 
     try {
       await Promise.all(
@@ -544,12 +537,11 @@ export default function AuthorCourseContentEditorPage() {
           });
         })
       );
-      setMessage("Block order saved.");
+      toast.success("Порядок блоков сохранён");
     } catch (requestError) {
       setLessonDetail(previousLessonDetail);
       setBlockDrafts(createBlockDrafts(previousLessonDetail.blocks || []));
-      setError(requestError.message);
-      setMessage("");
+      toast.error("Не удалось сохранить порядок блоков");
       try {
         await reloadSelectedLesson(activeBlockId);
       } catch {
@@ -587,6 +579,7 @@ export default function AuthorCourseContentEditorPage() {
     setChatInput("");
     setChatMessages((current) => [...current, { role: "user", text: userText }]);
     setIsChatLoading(true);
+    toast.info("Генерируем ответ ассистента...");
 
     try {
       const editorContext = lessonDetail
@@ -596,18 +589,20 @@ export default function AuthorCourseContentEditorPage() {
       const response = await apiRequest("/api/ai/chat", {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           userInput: userText,
           lessonContext: editorContext,
           chatHistory: chatMessages,
-          mode: activeMode 
+          mode: activeMode
         })
       });
 
       setChatMessages((current) => [...current, { role: "assistant", text: response.message.text }]);
+      toast.success("Ответ ассистента готов");
       setActiveMode(null);
     } catch (requestError) {
       setChatMessages((current) => [...current, { role: "assistant", text: `Ошибка: ${requestError.message}` }]);
+      toast.error("Не удалось получить ответ ассистента");
     } finally {
       setIsChatLoading(false);
     }
@@ -616,7 +611,6 @@ export default function AuthorCourseContentEditorPage() {
   return (
     <AppLayout
       title={courseTitle}
-      subtitle="Build lessons, choose block types, and edit course content."
       user={user}
       onLogout={handleLogout}
     >
@@ -630,8 +624,6 @@ export default function AuthorCourseContentEditorPage() {
       </div>
 
       {loading ? <p>Loading course content...</p> : null}
-      {error ? <p className="error">{error}</p> : null}
-      {message ? <p className="success">{message}</p> : null}
 
       {!loading ? (
         <section className="author-editor-layout">
@@ -900,7 +892,7 @@ export default function AuthorCourseContentEditorPage() {
                             <span className="eyebrow">Interactive Task</span>
                             <h4>Опрос / Тестирование</h4>
                           </div>
-                          
+
                           <label style={{ display: "block", marginBottom: "1.5rem" }}>
                             <span style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--text-muted, #64748b)" }}>Тип выбора</span>
                             <select
@@ -919,9 +911,9 @@ export default function AuthorCourseContentEditorPage() {
                           <div className="quiz-options-list">
                             <span style={{ display: "block", marginBottom: "0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--text-muted, #64748b)" }}>Варианты ответов</span>
                             {(blockDrafts[selectedBlock.id]?.quiz_data?.options || []).map((opt, idx) => (
-                              <div 
-                                key={idx} 
-                                className="quiz-option-item" 
+                              <div
+                                key={idx}
+                                className="quiz-option-item"
                                 draggable
                                 onDragStart={(event) => {
                                   event.dataTransfer.effectAllowed = "move";
@@ -950,15 +942,15 @@ export default function AuthorCourseContentEditorPage() {
                                   setDraggedOptionIdx(null);
                                   setOptionDropTargetIdx(null);
                                 }}
-                                style={{ 
-                                  display: "grid", 
-                                  gridTemplateColumns: "auto auto 1fr 1fr auto", 
-                                  gap: "0.75rem", 
-                                  alignItems: "center", 
-                                  marginBottom: "0.75rem", 
-                                  padding: "0.75rem", 
-                                  background: idx === optionDropTargetIdx ? "#eaf2ff" : "var(--surface-color, #f8fafc)", 
-                                  borderRadius: "6px", 
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "auto auto 1fr 1fr auto",
+                                  gap: "0.75rem",
+                                  alignItems: "center",
+                                  marginBottom: "0.75rem",
+                                  padding: "0.75rem",
+                                  background: idx === optionDropTargetIdx ? "#eaf2ff" : "var(--surface-color, #f8fafc)",
+                                  borderRadius: "6px",
                                   border: `1px solid ${idx === optionDropTargetIdx ? "#0b63f6" : "#e2e8f0"}`,
                                   opacity: idx === draggedOptionIdx ? 0.5 : 1,
                                   transition: "all 0.2s ease"
@@ -971,7 +963,7 @@ export default function AuthorCourseContentEditorPage() {
                                   onChange={(e) => {
                                     const newOptions = [...(blockDrafts[selectedBlock.id]?.quiz_data?.options || [])];
                                     if (blockDrafts[selectedBlock.id]?.quiz_data?.quiz_type === "single") {
-                                       newOptions.forEach(o => o.is_correct = false);
+                                      newOptions.forEach(o => o.is_correct = false);
                                     }
                                     newOptions[idx].is_correct = e.target.checked;
                                     updateBlockDraft(selectedBlock.id, "quiz_data", {
@@ -1005,8 +997,8 @@ export default function AuthorCourseContentEditorPage() {
                                   style={{ padding: "0.5rem", borderRadius: "4px", border: "1px solid #cbd5e1", width: "100%" }}
                                 />
                                 <button type="button" className="secondary-button" onClick={() => {
-                                   const newOptions = blockDrafts[selectedBlock.id].quiz_data.options.filter((_, i) => i !== idx);
-                                   updateBlockDraft(selectedBlock.id, "quiz_data", { ...(blockDrafts[selectedBlock.id]?.quiz_data || {}), options: newOptions });
+                                  const newOptions = blockDrafts[selectedBlock.id].quiz_data.options.filter((_, i) => i !== idx);
+                                  updateBlockDraft(selectedBlock.id, "quiz_data", { ...(blockDrafts[selectedBlock.id]?.quiz_data || {}), options: newOptions });
                                 }} style={{ padding: "0.5rem", color: "var(--error-color, #ef4444)", borderColor: "#e2e8f0" }} title="Удалить вариант">✕</button>
                               </div>
                             ))}
@@ -1028,7 +1020,7 @@ export default function AuthorCourseContentEditorPage() {
                             <span className="eyebrow">Interactive Task</span>
                             <h4>Настройки задания с кодом</h4>
                           </div>
-                          
+
                           <label style={{ display: "block", marginBottom: "1.5rem" }}>
                             <span style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--text-muted, #64748b)" }}>Язык программирования</span>
                             <select
@@ -1081,18 +1073,18 @@ export default function AuthorCourseContentEditorPage() {
                             <span style={{ display: "block", marginBottom: "0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--text-muted, #64748b)" }}>Test Benches (Тест-кейсы)</span>
                             <p style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: "1rem" }}>Добавьте входные данные (stdin) и ожидаемый вывод (stdout). Важно точное совпадение!</p>
                             {(blockDrafts[selectedBlock.id]?.quiz_data?.test_cases || []).map((tc, idx) => (
-                              <div 
-                                key={idx} 
-                                className="quiz-option-item" 
-                                style={{ 
-                                  display: "grid", 
-                                  gridTemplateColumns: "1fr 1fr auto", 
-                                  gap: "0.75rem", 
-                                  alignItems: "start", 
-                                  marginBottom: "0.75rem", 
-                                  padding: "1rem", 
-                                  background: "var(--surface-color, #f8fafc)", 
-                                  borderRadius: "6px", 
+                              <div
+                                key={idx}
+                                className="quiz-option-item"
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 1fr auto",
+                                  gap: "0.75rem",
+                                  alignItems: "start",
+                                  marginBottom: "0.75rem",
+                                  padding: "1rem",
+                                  background: "var(--surface-color, #f8fafc)",
+                                  borderRadius: "6px",
                                   border: "1px solid #e2e8f0"
                                 }}
                               >
@@ -1125,8 +1117,8 @@ export default function AuthorCourseContentEditorPage() {
                                   />
                                 </label>
                                 <button type="button" className="secondary-button" onClick={() => {
-                                   const newTestCases = blockDrafts[selectedBlock.id].quiz_data.test_cases.filter((_, i) => i !== idx);
-                                   updateBlockDraft(selectedBlock.id, "quiz_data", { ...(blockDrafts[selectedBlock.id]?.quiz_data || {}), task_type: "code", test_cases: newTestCases });
+                                  const newTestCases = blockDrafts[selectedBlock.id].quiz_data.test_cases.filter((_, i) => i !== idx);
+                                  updateBlockDraft(selectedBlock.id, "quiz_data", { ...(blockDrafts[selectedBlock.id]?.quiz_data || {}), task_type: "code", test_cases: newTestCases });
                                 }} style={{ padding: "0.5rem", color: "var(--error-color, #ef4444)", borderColor: "#e2e8f0" }} title="Удалить тест-кейс">✕</button>
                               </div>
                             ))}
@@ -1173,7 +1165,7 @@ export default function AuthorCourseContentEditorPage() {
                                         <span style={{ color: "#10b981" }}>Успешно: {authorTestResults[selectedBlock.id].tests_result.passed}</span>
                                         <span style={{ color: "#ef4444" }}>Упало: {authorTestResults[selectedBlock.id].tests_result.failed}</span>
                                       </div>
-                                      
+
                                       {(authorTestResults[selectedBlock.id].tests_result.details || []).map((detail, idx) => (
                                         <div key={idx} style={{ marginBottom: "0.5rem", padding: "0.75rem", border: "1px solid #e2e8f0", borderRadius: "4px", background: detail.passed ? "#f0fdf4" : "#fff" }}>
                                           <div style={{ fontWeight: "bold", marginBottom: "0.5rem", fontSize: "0.85rem", color: detail.passed ? "#15803d" : "#b91c1c" }}>
@@ -1229,7 +1221,7 @@ export default function AuthorCourseContentEditorPage() {
               <span className="eyebrow">Assistant</span>
               <h2>Course chat</h2>
             </div>
-            
+
             <div className="chat-quick-actions">
               {AUTHOR_MODES.map(mode => (
                 <button
@@ -1282,7 +1274,7 @@ export default function AuthorCourseContentEditorPage() {
                 onChange={setChatInput}
                 onSubmit={() => handleChatSubmit()}
                 placeholder={"Например:\nУлучши объяснение выбранного блока\nПридумай практическое задание по теме"}
-                disabled={isChatLoading} 
+                disabled={isChatLoading}
               />
               <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim()}>
                 Send

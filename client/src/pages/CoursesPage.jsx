@@ -4,6 +4,7 @@ import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import { clearToken } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 const DEFAULT_TAGS = [
   "JavaScript", "TypeScript", "React", "Node.js", "Python", 
@@ -13,9 +14,9 @@ const DEFAULT_TAGS = [
 export default function CoursesPage() {
   const navigate = useNavigate();
   const { user } = useAuthUser();
+  const toast = useToast();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [tag, setTag] = useState(searchParams.get("tag") || "");
@@ -41,7 +42,6 @@ export default function CoursesPage() {
 
     async function loadCourses() {
       setLoading(true);
-      setError("");
 
       const query = new URLSearchParams();
       if (search) {
@@ -58,7 +58,7 @@ export default function CoursesPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          toast.error("Не удалось загрузить курсы");
         }
       } finally {
         if (!cancelled) {
@@ -72,7 +72,7 @@ export default function CoursesPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, tag]);
+  }, [search, tag, toast]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -155,7 +155,6 @@ export default function CoursesPage() {
         </form>
 
         {loading ? <p>Loading courses...</p> : null}
-        {error ? <p className="error">{error}</p> : null}
 
         {!loading && !courses.length ? <p>No published courses match this filter.</p> : null}
 

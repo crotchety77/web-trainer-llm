@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown";
 import { clearToken, getAuthHeaders } from "../lib/auth";
 import { extractStepRefs } from "../utils/extractStepRefs";
 import { buildLessonSummaryContext, buildStepsContext } from "../utils/aiContextBuilders";
+import { useToast } from "../hooks/useToast";
 
 const STUDENT_MODES = [
   { id: 'code_help', label: '🐞 Помощь с кодом' },
@@ -40,9 +41,9 @@ export default function LearnPage() {
   const navigate = useNavigate();
   const { courseId, lessonId } = useParams();
   const { user } = useAuthUser({ required: true });
+  const toast = useToast();
   const [lessons, setLessons] = useState([]);
   const [lesson, setLesson] = useState(null);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [solutions, setSolutions] = useState({});
   const [submissionState, setSubmissionState] = useState({});
@@ -80,7 +81,6 @@ export default function LearnPage() {
 
     async function loadLessonData() {
       setLoading(true);
-      setError("");
 
       try {
         const [lessonsResponse, lessonResponse] = await Promise.all([
@@ -114,7 +114,7 @@ export default function LearnPage() {
             navigate("/login");
             return;
           } else {
-            setError(requestError.message);
+            toast.error("Не удалось загрузить урок");
           }
         }
       } finally {
@@ -129,7 +129,7 @@ export default function LearnPage() {
     return () => {
       cancelled = true;
     };
-  }, [courseId, lessonId]);
+  }, [courseId, lessonId, navigate, toast]);
 
   function handleLogout() {
     clearToken();
@@ -157,12 +157,14 @@ export default function LearnPage() {
         ...current,
         [blockId]: { submitting: false, error: "" }
       }));
+      toast.success("Шаг отмечен как пройденный");
     } catch (requestError) {
       console.error("Failed to mark block as completed:", requestError);
       setSubmissionState((current) => ({
         ...current,
         [blockId]: { submitting: false, error: localizeError(requestError.message) }
       }));
+      toast.error("Не удалось отметить шаг");
     }
   }
 
@@ -197,10 +199,13 @@ export default function LearnPage() {
       }));
 
       if (response.attempt && response.attempt.is_correct) {
+        toast.success("Ответ верный");
         setLesson((current) => ({
           ...current,
           blocks: current.blocks.map((b) => (b.id === blockId ? { ...b, is_completed: true } : b))
         }));
+      } else {
+        toast.warning("Ответ неверный");
       }
     } catch (requestError) {
       setSubmissionState((current) => ({
@@ -211,6 +216,7 @@ export default function LearnPage() {
           submission: null
         }
       }));
+      toast.error("Не удалось проверить ответ");
     }
   }
 
@@ -241,6 +247,7 @@ export default function LearnPage() {
           submission: null
         }
       }));
+      toast.warning("Введите код решения");
       return;
     }
 
@@ -277,10 +284,13 @@ export default function LearnPage() {
 
       // Автоматически помечаем задание как выполненное в UI, если код прошел проверку успешно
       if (response.submission && ["accepted", "passed"].includes(response.submission.status)) {
+        toast.success("Решение прошло проверку");
         setLesson((current) => ({
           ...current,
           blocks: current.blocks.map((b) => (b.id === blockId ? { ...b, is_completed: true } : b))
         }));
+      } else {
+        toast.error("Решение не прошло проверку");
       }
     } catch (requestError) {
       setSubmissionState((current) => ({
@@ -291,6 +301,7 @@ export default function LearnPage() {
           submission: null
         }
       }));
+      toast.error("Ошибка выполнения кода");
     }
   }
 
@@ -302,6 +313,7 @@ export default function LearnPage() {
     setChatInput("");
     setChatMessages((current) => [...current, { role: "user", text: userText }]);
     setIsChatLoading(true);
+    toast.info("Генерируем ответ ассистента...");
 
     try {
       const lessonContext = buildLessonSummaryContext(lesson, sortedBlocks);
@@ -325,9 +337,11 @@ export default function LearnPage() {
       });
 
       setChatMessages((current) => [...current, { role: "assistant", text: response.message.text }]);
+      toast.success("Ответ ассистента готов");
       setActiveMode(null);
     } catch (requestError) {
       setChatMessages((current) => [...current, { role: "assistant", text: `Ошибка: ${requestError.message}` }]);
+      toast.error("Не удалось получить ответ ассистента");
     } finally {
       setIsChatLoading(false);
     }
@@ -341,7 +355,6 @@ export default function LearnPage() {
     >
       <section className="learn-page">
         {loading ? <p>Loading lesson...</p> : null}
-        {error ? <p className="error">{error}</p> : null}
 
         {!loading && lesson ? (
           <div className="learn-layout">
@@ -412,7 +425,7 @@ export default function LearnPage() {
                             {blockState.error && (
                               <div className="check-result error-result" style={{ margin: 0, flex: 1 }}>
                                 <span>Ошибка</span>
-                                <p className="error">{blockState.error}</p>
+                                <p className="result-text-error">{blockState.error}</p>
                               </div>
                             )}
                             <button 
@@ -460,9 +473,9 @@ export default function LearnPage() {
                                 <button type="submit" className="secondary-button submit-button" disabled={blockState.submitting || isCompleted || !user || (quizAnswers[block.id] || []).length === 0}>
                                   {blockState.submitting ? "Проверка..." : isCompleted ? "Пройдено" : user ? "Ответить" : "Войдите для ответа"}
                                 </button>
-                                {blockState.error && <div className="check-result error-result" style={{ marginTop: '0.5rem' }}><span>Ошибка</span><p className="error">{blockState.error}</p></div>}
-                                {blockState.hint && <div className="check-result error-result" style={{ marginTop: '0.5rem' }}><span>Неверно</span><p className="error">{blockState.hint}</p></div>}
-                                {blockState.submission && blockState.submission.is_correct && <div className="check-result success-result" style={{ marginTop: '0.5rem' }}><span>Успех</span><p className="success">Правильный ответ!</p></div>}
+                                {blockState.error && <div className="check-result error-result" style={{ marginTop: '0.5rem' }}><span>Ошибка</span><p className="result-text-error">{blockState.error}</p></div>}
+                                {blockState.hint && <div className="check-result error-result" style={{ marginTop: '0.5rem' }}><span>Неверно</span><p className="result-text-error">{blockState.hint}</p></div>}
+                                {blockState.submission && blockState.submission.is_correct && <div className="check-result success-result" style={{ marginTop: '0.5rem' }}><span>Успех</span><p className="result-text-success">Правильный ответ!</p></div>}
                               </div>
                             </form>
                           </div>
@@ -499,13 +512,13 @@ export default function LearnPage() {
                               {blockState.error ? (
                                 <div className="check-result error-result">
                                   <span>Check failed</span>
-                                  <p className="error">{blockState.error}</p>
+                                  <p className="result-text-error">{blockState.error}</p>
                                 </div>
                               ) : null}
                               {blockState.submission ? (
                                 <div className={`check-result ${blockState.submission.status === "passed" || blockState.submission.status === "accepted" ? "success-result" : "error-result"}`}>
                                   <span>{blockState.submission.status || "Result"}</span>
-                                  <p className={blockState.submission.status === "passed" || blockState.submission.status === "accepted" ? "success" : "error"}>{blockState.submission.result_message}</p>
+                                  <p className={blockState.submission.status === "passed" || blockState.submission.status === "accepted" ? "result-text-success" : "result-text-error"}>{blockState.submission.result_message}</p>
                                   {blockState.submission.tests_result ? (
                                     <div className="test-stats" style={{ marginTop: "1rem" }}>
                                       <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", fontWeight: "bold" }}>

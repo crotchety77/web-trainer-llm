@@ -6,6 +6,7 @@ import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import ReactMarkdown from "react-markdown";
 import { clearToken, getAuthHeaders } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 const emptyCourse = {
   cover_image_url: "",
@@ -39,12 +40,11 @@ export default function AuthorCourseEditorPage() {
   const params = useParams();
   const isNew = !params.id;
   const { user } = useAuthUser({ required: true });
+  const toast = useToast();
   const [courseForm, setCourseForm] = useState(emptyCourse);
   const [courseId, setCourseId] = useState(params.id || "");
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -58,7 +58,6 @@ export default function AuthorCourseEditorPage() {
 
     async function loadCourse() {
       setLoading(true);
-      setError("");
 
       try {
         const response = await apiRequest(`/api/courses/${params.id}`, {
@@ -79,7 +78,7 @@ export default function AuthorCourseEditorPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          toast.error("Не удалось загрузить курс");
         }
       } finally {
         if (!cancelled) {
@@ -93,7 +92,7 @@ export default function AuthorCourseEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [isNew, params.id]);
+  }, [isNew, params.id, toast]);
 
   function handleLogout() {
     clearToken();
@@ -111,8 +110,6 @@ export default function AuthorCourseEditorPage() {
   async function handleCourseSubmit(event) {
     event.preventDefault();
     setSaving(true);
-    setError("");
-    setMessage("");
 
     const payload = {
       ...courseForm,
@@ -137,13 +134,13 @@ export default function AuthorCourseEditorPage() {
 
       const savedCourse = response.course;
       setCourseId(savedCourse.id);
-      setMessage(isNew ? "Course created." : "Course updated.");
+      toast.success(isNew ? "Курс успешно создан" : "Изменения сохранены");
 
       if (isNew) {
         navigate(`/author/courses/${savedCourse.id}/edit`, { replace: true });
       }
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error(isNew ? "Не удалось создать курс" : "Не удалось сохранить курс");
     } finally {
       setSaving(false);
     }
@@ -157,6 +154,7 @@ export default function AuthorCourseEditorPage() {
     setChatInput("");
     setChatMessages((current) => [...current, { role: "user", text: userText }]);
     setIsChatLoading(true);
+    toast.info("Генерируем ответ ассистента...");
 
     try {
       const response = await apiRequest("/api/ai/chat", {
@@ -171,8 +169,10 @@ export default function AuthorCourseEditorPage() {
       });
 
       setChatMessages((current) => [...current, { role: "assistant", text: response.message.text }]);
+      toast.success("Ответ ассистента готов");
     } catch (requestError) {
       setChatMessages((current) => [...current, { role: "assistant", text: `Ошибка: ${requestError.message}` }]);
+      toast.error("Не удалось получить ответ ассистента");
     } finally {
       setIsChatLoading(false);
     }
@@ -199,9 +199,6 @@ export default function AuthorCourseEditorPage() {
           </div>
 
           {loading ? <p>Loading course editor...</p> : null}
-          {error ? <p className="error">{error}</p> : null}
-          {message ? <p className="success">{message}</p> : null}
-
           <form className="form" onSubmit={handleCourseSubmit}>
             <label>
               <span>Cover image URL</span>

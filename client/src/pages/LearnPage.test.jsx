@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LearnPage from "./LearnPage";
 import { apiRequest } from "../lib/api";
+import { ToastProvider } from "../hooks/useToast";
 
 vi.mock("../lib/api", () => ({
   apiRequest: vi.fn()
@@ -76,11 +77,13 @@ const lesson = {
 
 function renderLearnPage() {
   return render(
-    <MemoryRouter initialEntries={["/learn/3/10"]}>
-      <Routes>
-        <Route path="/learn/:courseId/:lessonId" element={<LearnPage />} />
-      </Routes>
-    </MemoryRouter>
+    <ToastProvider>
+      <MemoryRouter initialEntries={["/learn/3/10"]}>
+        <Routes>
+          <Route path="/learn/:courseId/:lessonId" element={<LearnPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>
   );
 }
 
@@ -258,6 +261,6 @@ describe("LearnPage", () => {
 
     renderLearnPage();
 
-    expect(await screen.findByText("You do not have access to this lesson")).toBeInTheDocument();
+    expect(await screen.findByText("Не удалось загрузить урок")).toBeInTheDocument();
   });
 });

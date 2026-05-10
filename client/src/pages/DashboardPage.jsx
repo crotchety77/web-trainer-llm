@@ -4,10 +4,12 @@ import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { getApiUrl, apiRequest } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, loading, error } = useAuthUser({ required: true });
+  const toast = useToast();
   const [enrollments, setEnrollments] = useState([]);
   const [loadingEnrollments, setLoadingEnrollments] = useState(false);
 
@@ -16,10 +18,10 @@ export default function DashboardPage() {
       setLoadingEnrollments(true);
       apiRequest("/api/student/courses", { headers: getAuthHeaders() })
         .then(data => setEnrollments(data.enrollments || []))
-        .catch(err => console.error("Failed to load enrollments:", err))
+        .catch(() => toast.error("Не удалось загрузить прогресс обучения"))
         .finally(() => setLoadingEnrollments(false));
     }
-  }, [user]);
+  }, [user, toast]);
 
   function handleLogout() {
     clearToken();
@@ -39,12 +41,9 @@ export default function DashboardPage() {
     >
       <section className="panel">
         {error ? (
-          <div>
-            <p className="error">{error}</p>
-            <p className="helper-text">
-              Token is missing or invalid. <Link to="/login">Login again</Link>.
-            </p>
-          </div>
+          <p className="helper-text">
+            Сессия истекла. <Link to="/login">Войдите снова</Link>.
+          </p>
         ) : null}
 
         {user ? (
