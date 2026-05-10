@@ -45,13 +45,17 @@ export default function LearnPage() {
   const activeLessonRef = useRef(null);
 
   useEffect(() => {
-    if (activeLessonRef.current) {
-      activeLessonRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest'
-      });
+    if (activeLessonRef.current && lessons.length > 0) {
+      const activeIndex = lessons.findIndex(l => l.id === lesson?.id);
+      // Скроллим только если урок находится за пределами первого экрана (например, после 15-го)
+      if (activeIndex > 14) {
+        activeLessonRef.current.scrollIntoView({
+          behavior: 'auto',
+          block: 'start'
+        });
+      }
     }
-  }, [lesson?.id]);
+  }, [lesson?.id, lessons]);
 
 
 

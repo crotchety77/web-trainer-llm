@@ -115,6 +115,10 @@ textarea {
   margin-block: 0.33em;
 }
 
+h2 {
+  margin-block: 0.33em;
+}
+
 h4 {
   margin-block: 0.33em;
 }
@@ -309,10 +313,30 @@ h4 {
 }
 
 .profile-grid,
-.course-list,
 .stack-list {
   display: grid;
   gap: 2px;
+}
+
+.course-list {
+  display: grid;
+  gap: 16px;
+  max-height: 72vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.course-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.course-list::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+.course-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .profile-grid {
@@ -330,11 +354,16 @@ h4 {
 .course-card {
   display: grid;
   grid-template-columns: 240px 1fr;
-  gap: 20px;
+  gap: 24px;
   padding: 18px;
   border: 1px solid #d9e3f5;
   border-radius: 18px;
   background: #fbfdff;
+}
+
+.course-card-media {
+  display: grid;
+  gap: 12px;
 }
 
 .course-card.compact {
@@ -1260,4 +1289,40 @@ h4 {
     width: 100%;
     grid-auto-flow: row;
   }
+}
+
+/* Позиционирование контейнера для автодополнения */
+.filters-row .inline-field {
+  position: relative; 
+}
+
+/* Сам выпадающий список */
+.custom-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  z-index: 999; /* Гарантируем, что список будет поверх всего */
+}
+
+/* Элементы списка */
+.custom-dropdown li {
+  padding: 10px 16px;
+  cursor: pointer;
+  color: #374151;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.custom-dropdown li:hover {
+  background-color: #f3f4f6;
 }
