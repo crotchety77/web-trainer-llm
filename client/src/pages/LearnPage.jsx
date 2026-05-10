@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import CodeEditor from "../components/CodeEditor";
+import AssistantTextarea from "../components/AssistantTextarea";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import ReactMarkdown from "react-markdown";
@@ -15,6 +16,18 @@ const STUDENT_MODES = [
   { id: 'example', label: '💡 Пример' },
   { id: 'search_info', label: '🔍 Поиск' }
 ];
+
+const MODE_DESCRIPTIONS = {
+  default: `Ассистент поможет разобраться в задаче, найти ошибку, объяснить теорию или подсказать направление решения.
+
+Можно использовать:
+@step2 почему ошибка?
+@step1 объясни задачу`,
+  code_help: "Помогает находить ошибки в коде, объясняет причины проблем и подсказывает направление исправления без готового решения.",
+  explain: "Объясняет теорию и логику решения простыми словами и пошагово разбирает сложные моменты.",
+  example: "Показывает похожие примеры и аналогии, чтобы помочь понять принцип решения задачи.",
+  search_info: "Помогает быстро получить краткую информацию, объяснение термина или ответ по теме урока."
+};
 
 const localizeError = (msg) => {
   if (msg === "You do not have access to this action") {
@@ -282,7 +295,7 @@ export default function LearnPage() {
   }
 
   async function handleChatSubmit(event) {
-    event.preventDefault();
+    event?.preventDefault();
     if (!chatInput.trim() || isChatLoading) return;
 
     const userText = chatInput.trim();
@@ -540,7 +553,7 @@ export default function LearnPage() {
                   <h2>Chat</h2>
                 </div>
                 
-                <div className="chat-quick-actions" style={{ display: "flex", gap: "0.5rem", padding: "0 0.5rem", overflowX: "auto", flexShrink: 0 }}>
+                <div className="chat-quick-actions">
                   {STUDENT_MODES.map(mode => (
                     <button
                       key={mode.id}
@@ -549,13 +562,15 @@ export default function LearnPage() {
                       disabled={!user}
                       style={{
                         fontSize: "0.75rem",
-                        padding: "0.25rem 0.5rem",
-                        borderRadius: "12px",
+                        minHeight: "38px",
+                        padding: "0.45rem 0.55rem",
+                        borderRadius: "8px",
                         border: "1px solid var(--border-color, #cbd5e1)",
                         background: activeMode === mode.id ? "var(--primary-color, #0284c7)" : "transparent",
                         color: activeMode === mode.id ? "#fff" : (user ? "inherit" : "var(--text-muted, #94a3b8)"),
                         cursor: user ? "pointer" : "not-allowed",
-                        whiteSpace: "nowrap"
+                        whiteSpace: "normal",
+                        lineHeight: 1.2
                       }}
                     >
                       {mode.label}
@@ -566,7 +581,7 @@ export default function LearnPage() {
                 <div className="chat-history" style={{ flex: 1, overflowY: "auto", padding: "1rem 0", display: "flex", flexDirection: "column", gap: "1rem" }}>
                   {chatMessages.length === 0 ? (
                     <div className="assistant-placeholder">
-                      <p>{user ? "Ask for a hint, explain an error, or review your approach." : "Log in to chat with the AI assistant."}</p>
+                      <p>{user ? MODE_DESCRIPTIONS[activeMode || "default"] : "Войдите, чтобы пользоваться AI-ассистентом."}</p>
                     </div>
                   ) : (
                     chatMessages.map((msg, index) => (
@@ -596,11 +611,11 @@ export default function LearnPage() {
                     </div>
                   ) : null}
                   <form className="assistant-input-row" onSubmit={handleChatSubmit}>
-                    <input 
-                      type="text" 
+                    <AssistantTextarea
                       value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder={user ? "Type @step2 and ask your question..." : "Log in to use chat..."}
+                      onChange={setChatInput}
+                      onSubmit={() => handleChatSubmit()}
+                      placeholder={user ? "Например:\n@step2 почему у меня ошибка?\n@step3 объясни что делает этот код" : "Войдите, чтобы пользоваться чатом."}
                       disabled={isChatLoading || !user} 
                     />
                     <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !user}>

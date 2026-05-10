@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import CodeEditor from "../components/CodeEditor";
+import AssistantTextarea from "../components/AssistantTextarea";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
@@ -26,6 +27,13 @@ const AUTHOR_MODES = [
   { id: 'generate_task', label: '🎯 Задание', icon: '🎯' },
   { id: 'structure', label: '📑 Структура', icon: '📑' },
 ];
+
+const AUTHOR_MODE_DESCRIPTIONS = {
+  default: "Ассистент поможет улучшить объяснение, придумать практическое задание, структурировать урок или доработать подсказки для студентов.",
+  improve_text: "Улучшает текст выбранного блока: делает объяснение яснее, короче и удобнее для восприятия студентом.",
+  generate_task: "Помогает придумать практическое задание, тестовые случаи, варианты ответов и подсказки по теме урока.",
+  structure: "Помогает выстроить структуру урока: порядок блоков, логические переходы, цели и последовательность материала."
+};
 
 function createBlockDrafts(blocks) {
   return Object.fromEntries(
@@ -572,7 +580,7 @@ export default function AuthorCourseContentEditorPage() {
   }
 
   async function handleChatSubmit(event) {
-    event.preventDefault();
+    event?.preventDefault();
     if (!chatInput.trim() || isChatLoading) return;
 
     const userText = chatInput.trim();
@@ -1222,7 +1230,7 @@ export default function AuthorCourseContentEditorPage() {
               <h2>Course chat</h2>
             </div>
             
-            <div className="chat-quick-actions" style={{ display: "flex", gap: "0.5rem", padding: "0 0.5rem", overflowX: "auto", flexShrink: 0 }}>
+            <div className="chat-quick-actions">
               {AUTHOR_MODES.map(mode => (
                 <button
                   key={mode.id}
@@ -1230,13 +1238,15 @@ export default function AuthorCourseContentEditorPage() {
                   onClick={() => setActiveMode(activeMode === mode.id ? null : mode.id)}
                   style={{
                     fontSize: "0.75rem",
-                    padding: "0.25rem 0.5rem",
-                    borderRadius: "12px",
+                    minHeight: "38px",
+                    padding: "0.45rem 0.55rem",
+                    borderRadius: "8px",
                     border: "1px solid var(--border-color, #cbd5e1)",
                     background: activeMode === mode.id ? "var(--primary-color, #0284c7)" : "transparent",
                     color: activeMode === mode.id ? "#fff" : "inherit",
                     cursor: "pointer",
-                    whiteSpace: "nowrap"
+                    whiteSpace: "normal",
+                    lineHeight: 1.2
                   }}
                 >
                   {mode.label}
@@ -1247,7 +1257,7 @@ export default function AuthorCourseContentEditorPage() {
             <div className="chat-history" style={{ flex: 1, overflowY: "auto", padding: "1rem 0", display: "flex", flexDirection: "column", gap: "1rem" }}>
               {chatMessages.length === 0 ? (
                 <div className="author-assistant-placeholder">
-                  <p>Draft explanations, suggest practice tasks, outline lesson structure, or improve hints.</p>
+                  <p>{AUTHOR_MODE_DESCRIPTIONS[activeMode || "default"]}</p>
                 </div>
               ) : (
                 chatMessages.map((msg, index) => (
@@ -1267,11 +1277,11 @@ export default function AuthorCourseContentEditorPage() {
             </div>
 
             <form className="assistant-input-row" onSubmit={handleChatSubmit}>
-              <input 
-                type="text" 
+              <AssistantTextarea
                 value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ask assistant..." 
+                onChange={setChatInput}
+                onSubmit={() => handleChatSubmit()}
+                placeholder={"Например:\nУлучши объяснение выбранного блока\nПридумай практическое задание по теме"}
                 disabled={isChatLoading} 
               />
               <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim()}>

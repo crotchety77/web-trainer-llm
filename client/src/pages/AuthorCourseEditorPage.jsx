@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
+import AssistantTextarea from "../components/AssistantTextarea";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
+import ReactMarkdown from "react-markdown";
 import { clearToken, getAuthHeaders } from "../lib/auth";
 
 const emptyCourse = {
@@ -13,6 +15,24 @@ const emptyCourse = {
   tags: "",
   is_published: false
 };
+
+function buildCourseEditorContext(courseForm) {
+  const tags = courseForm.tags
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return [
+    "Автор редактирует публичную карточку курса.",
+    "Задача ассистента: помогать сформулировать короткое описание, вводный текст и подобрать точные хештеги по текущему контексту курса.",
+    "",
+    `Название: ${courseForm.title || "(не заполнено)"}`,
+    `Короткое описание: ${courseForm.short_description || "(не заполнено)"}`,
+    `Вводный текст: ${courseForm.intro_content || "(не заполнено)"}`,
+    `Текущие теги: ${tags.length > 0 ? tags.join(", ") : "(не заполнены)"}`,
+    `Статус публикации: ${courseForm.is_published ? "published" : "draft"}`
+  ].join("\n");
+}
 
 export default function AuthorCourseEditorPage() {
   const navigate = useNavigate();
@@ -25,6 +45,9 @@ export default function AuthorCourseEditorPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   useEffect(() => {
     if (isNew || !params.id) {
@@ -126,6 +149,35 @@ export default function AuthorCourseEditorPage() {
     }
   }
 
+  async function handleChatSubmit(event) {
+    event?.preventDefault();
+    if (!chatInput.trim() || isChatLoading) return;
+
+    const userText = chatInput.trim();
+    setChatInput("");
+    setChatMessages((current) => [...current, { role: "user", text: userText }]);
+    setIsChatLoading(true);
+
+    try {
+      const response = await apiRequest("/api/ai/chat", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          userInput: userText,
+          lessonContext: buildCourseEditorContext(courseForm),
+          chatHistory: chatMessages,
+          mode: null
+        })
+      });
+
+      setChatMessages((current) => [...current, { role: "assistant", text: response.message.text }]);
+    } catch (requestError) {
+      setChatMessages((current) => [...current, { role: "assistant", text: `Ошибка: ${requestError.message}` }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  }
+
   return (
     <AppLayout
       title={isNew ? "Create Course" : "Edit Course"}
@@ -133,82 +185,128 @@ export default function AuthorCourseEditorPage() {
       user={user}
       onLogout={handleLogout}
     >
-      <section className="panel">
-        <div className="action-row">
-          <Link className="secondary-link-button" to="/author/dashboard">
-            Back to dashboard
-          </Link>
-          {!isNew && courseId ? (
-            <Link className="primary-link-button" to={`/author/courses/${courseId}/content`}>
-              Edit course content
+      <div className="course-editor-page-layout">
+        <section className="panel">
+          <div className="action-row">
+            <Link className="secondary-link-button" to="/author/dashboard">
+              Back to dashboard
             </Link>
-          ) : null}
-        </div>
+            {!isNew && courseId ? (
+              <Link className="primary-link-button" to={`/author/courses/${courseId}/content`}>
+                Edit course content
+              </Link>
+            ) : null}
+          </div>
 
-        {loading ? <p>Loading course editor...</p> : null}
-        {error ? <p className="error">{error}</p> : null}
-        {message ? <p className="success">{message}</p> : null}
+          {loading ? <p>Loading course editor...</p> : null}
+          {error ? <p className="error">{error}</p> : null}
+          {message ? <p className="success">{message}</p> : null}
 
-        <form className="form" onSubmit={handleCourseSubmit}>
-          <label>
-            <span>Cover image URL</span>
-            <input
-              name="cover_image_url"
-              value={courseForm.cover_image_url}
-              onChange={updateCourseField}
+          <form className="form" onSubmit={handleCourseSubmit}>
+            <label>
+              <span>Cover image URL</span>
+              <input
+                name="cover_image_url"
+                value={courseForm.cover_image_url}
+                onChange={updateCourseField}
+              />
+            </label>
+
+            <label>
+              <span>Title</span>
+              <input name="title" value={courseForm.title} onChange={updateCourseField} required />
+            </label>
+
+            <label>
+              <span>Short description</span>
+              <textarea
+                name="short_description"
+                value={courseForm.short_description}
+                onChange={updateCourseField}
+                rows="3"
+              />
+            </label>
+
+            <label>
+              <span>Intro content</span>
+              <textarea
+                name="intro_content"
+                value={courseForm.intro_content}
+                onChange={updateCourseField}
+                rows="5"
+              />
+            </label>
+
+            <label>
+              <span>Tags</span>
+              <input
+                name="tags"
+                value={courseForm.tags}
+                onChange={updateCourseField}
+                placeholder="react, sql, backend"
+              />
+            </label>
+
+            <label className="checkbox-field">
+              <input
+                type="checkbox"
+                name="is_published"
+                checked={courseForm.is_published}
+                onChange={updateCourseField}
+              />
+              <span>Published</span>
+            </label>
+
+            <button type="submit" disabled={saving}>
+              {saving ? "Saving..." : isNew ? "Create course" : "Save course"}
+            </button>
+          </form>
+        </section>
+
+        <aside className="author-assistant-panel course-page-assistant" aria-label="Course page assistant">
+          <div className="author-panel-header">
+            <span className="eyebrow">Assistant</span>
+            <h2>Course page</h2>
+          </div>
+
+          <div className="chat-history">
+            {chatMessages.length === 0 ? (
+              <div className="author-assistant-placeholder">
+                <p>Ask for a stronger short description, intro rewrite, or better tags for this course page.</p>
+              </div>
+            ) : (
+              chatMessages.map((msg, index) => (
+                <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%" }}>
+                  <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{msg.role === "user" ? "You" : "AI Assistant"}</strong>
+                  {msg.role === "assistant" ? (
+                    <div className="markdown-content" style={{ paddingTop: "0.25rem", fontSize: "0.95rem" }}>
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p style={{ margin: "0.25rem 0 0 0", whiteSpace: "pre-wrap", fontSize: "0.95rem" }}>{msg.text}</p>
+                  )}
+                </div>
+              ))
+            )}
+            {isChatLoading ? (
+              <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Typing...</div>
+            ) : null}
+          </div>
+
+          <form className="assistant-input-row" onSubmit={handleChatSubmit}>
+            <AssistantTextarea
+              value={chatInput}
+              onChange={setChatInput}
+              onSubmit={() => handleChatSubmit()}
+              placeholder={"Например:\nСделай описание курса сильнее\nПодбери 5 тегов по теме курса"}
+              disabled={isChatLoading}
             />
-          </label>
-
-          <label>
-            <span>Title</span>
-            <input name="title" value={courseForm.title} onChange={updateCourseField} required />
-          </label>
-
-          <label>
-            <span>Short description</span>
-            <textarea
-              name="short_description"
-              value={courseForm.short_description}
-              onChange={updateCourseField}
-              rows="3"
-            />
-          </label>
-
-          <label>
-            <span>Intro content</span>
-            <textarea
-              name="intro_content"
-              value={courseForm.intro_content}
-              onChange={updateCourseField}
-              rows="5"
-            />
-          </label>
-
-          <label>
-            <span>Tags</span>
-            <input
-              name="tags"
-              value={courseForm.tags}
-              onChange={updateCourseField}
-              placeholder="react, sql, backend"
-            />
-          </label>
-
-          <label className="checkbox-field">
-            <input
-              type="checkbox"
-              name="is_published"
-              checked={courseForm.is_published}
-              onChange={updateCourseField}
-            />
-            <span>Published</span>
-          </label>
-
-          <button type="submit" disabled={saving}>
-            {saving ? "Saving..." : isNew ? "Create course" : "Save course"}
-          </button>
-        </form>
-      </section>
+            <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim()}>
+              Send
+            </button>
+          </form>
+        </aside>
+      </div>
     </AppLayout>
   );
 }

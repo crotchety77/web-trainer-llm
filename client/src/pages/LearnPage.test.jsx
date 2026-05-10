@@ -219,7 +219,7 @@ describe("LearnPage", () => {
     const editor = await screen.findByLabelText("Solution code for Write code");
     fireEvent.change(editor, { target: { value: "function solve() { return false; }" } });
 
-    const input = screen.getByPlaceholderText("Type @step2 and ask your question...");
+    const input = screen.getByPlaceholderText(/@step2 почему у меня ошибка/);
     fireEvent.change(input, { target: { value: "@step2 why error?" } });
     expect(screen.getByText("@step2")).toBeInTheDocument();
 

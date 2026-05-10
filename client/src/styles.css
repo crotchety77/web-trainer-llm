@@ -824,13 +824,31 @@ h4 {
 
 .assistant-placeholder p {
   margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.chat-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+  flex-shrink: 0;
+}
+
+.chat-quick-actions button {
+  width: 100%;
 }
 
 .assistant-input-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   margin-top: auto;
+}
+
+.assistant-input-row .secondary-button {
+  justify-self: stretch;
 }
 
 .assistant-context-hints {
@@ -840,13 +858,37 @@ h4 {
   margin-bottom: 8px;
 }
 
-.assistant-input-row input {
+.assistant-input-row input,
+.assistant-textarea {
   min-width: 0;
   padding: 10px 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px dashed #cbd5e1;
   border-radius: 8px;
   background: #f8fafc;
+  color: #334155;
+}
+
+.assistant-textarea {
+  width: 100%;
+  min-height: 64px;
+  max-height: 180px;
+  overflow-y: auto;
+  resize: none;
+  line-height: 1.45;
+  font: inherit;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.assistant-textarea::placeholder {
   color: #64748b;
+  white-space: pre-line;
+}
+
+.assistant-textarea:focus {
+  border-color: #0b63f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(11, 99, 246, 0.12);
 }
 
 .author-editor-layout {
@@ -856,6 +898,21 @@ h4 {
   align-items: start;
   margin-top: 20px;
   min-width: 0;
+}
+
+.course-editor-page-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.course-page-assistant {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 160px);
+  min-height: 620px;
+  overflow-y: auto;
 }
 
 .author-content-actions {
@@ -1168,6 +1225,15 @@ h4 {
   min-height: 520px;
 }
 
+.author-assistant-panel .chat-history {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  min-height: 330px;
+  padding: 1rem 0;
+}
+
 .author-assistant-placeholder {
   display: flex;
   align-items: center;
@@ -1181,6 +1247,8 @@ h4 {
 
 .author-assistant-placeholder p {
   margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.55;
 }
 
 .author-empty-state {
@@ -1220,6 +1288,7 @@ h4 {
   .learn-layout,
   .learn-workspace,
   .author-editor-layout,
+  .course-editor-page-layout,
   .editor-grid {
     grid-template-columns: 1fr;
   }
@@ -1227,6 +1296,7 @@ h4 {
   .learn-sidebar,
   .assistant-panel,
   .author-lessons-sidebar,
+  .course-page-assistant,
   .author-assistant-panel {
     position: static;
     max-height: none;
