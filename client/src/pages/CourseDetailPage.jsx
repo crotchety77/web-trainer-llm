@@ -74,14 +74,14 @@ export default function CourseDetailPage() {
       user={user}
       onLogout={handleLogout}
     >
-      <section className="panel">
+      <section className="course-detail-section">
         {loading ? <p>Loading course...</p> : null}
         {error ? <p className="error">{error}</p> : null}
         {message ? <p className="success">{message}</p> : null}
 
         {course ? (
           <div className="detail-grid">
-            <div className="detail-main">
+            <div className="detail-main panel">
               {course.cover_image_url ? (
                 <img className="hero-cover" src={course.cover_image_url} alt={course.title} />
               ) : null}

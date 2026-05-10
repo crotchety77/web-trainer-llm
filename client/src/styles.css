@@ -100,8 +100,11 @@ textarea {
   padding: 32px 24px 48px;
 }
 
-.page-shell:has(.author-editor-layout) {
-  max-width: none;
+.page-shell:has(.author-editor-layout),
+.page-shell:has(.learn-layout) {
+  max-width: 1720px;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .page-hero {
@@ -110,13 +113,59 @@ textarea {
 
 .card,
 .panel,
-.sidebar-panel,
 .lesson-content {
   background: #ffffff;
   border: 1px solid #d9e3f5;
   border-radius: 18px;
   padding: 20px;
   box-shadow: 0 18px 40px rgba(45, 87, 152, 0.08);
+}
+
+.sidebar-panel,
+.author-lessons-sidebar,
+.learn-sidebar {
+  background: #ffffff;
+  border: 1px solid #d9e3f5;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 18px 40px rgba(45, 87, 152, 0.08);
+  position: sticky;
+  top: 24px;
+  max-height: 65vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  align-self: start;
+}
+
+.author-lessons-sidebar .stack-list,
+.sidebar-panel .stack-list,
+.learn-sidebar .stack-list {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  margin-right: -10px;
+  padding-right: 10px;
+}
+
+.author-lessons-sidebar .stack-list::-webkit-scrollbar,
+.sidebar-panel .stack-list::-webkit-scrollbar,
+.learn-sidebar .stack-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.author-lessons-sidebar .stack-list::-webkit-scrollbar-thumb,
+.sidebar-panel .stack-list::-webkit-scrollbar-thumb,
+.learn-sidebar .stack-list::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+.author-lessons-sidebar .stack-list::-webkit-scrollbar-track,
+.sidebar-panel .stack-list::-webkit-scrollbar-track,
+.learn-sidebar .stack-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .sidebar-panel h3 {
@@ -348,7 +397,7 @@ textarea {
   color: #475569;
   border-radius: 50%;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   flex-shrink: 0;
   transition: all 0.2s ease;
 }
@@ -405,28 +454,38 @@ textarea {
   align-items: start;
 }
 
-.learn-sidebar,
-.lesson-content,
+.lesson-content {
+  background: #ffffff;
+  border: 1px solid #dde5f1;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(45, 87, 152, 0.05);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  position: sticky;
+  top: 24px;
+  overflow: hidden;
+}
+
 .assistant-panel {
   background: #ffffff;
   border: 1px solid #dde5f1;
-  border-radius: 8px;
-  box-shadow: none;
+  border-radius: 12px;
+  padding: 20px;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
 }
 
-.learn-sidebar {
-  position: sticky;
-  top: 86px;
-  max-height: calc(100vh - 112px);
-  overflow: auto;
-  padding: 14px;
-}
+
 
 .learn-sidebar-header,
 .lesson-header,
 .assistant-panel {
   display: grid;
   gap: 6px;
+  width: 99%;
 }
 
 .learn-sidebar h2,
@@ -495,61 +554,26 @@ textarea {
   min-width: 0;
 }
 
-.learn-sidebar .lesson-link-card {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  min-height: 38px;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #334155;
-  box-shadow: none;
-}
 
-.learn-sidebar .lesson-link-card strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 600;
-}
 
-.learn-sidebar .lesson-link-card.active {
-  background: #eaf2ff;
-  color: #0b3d91;
-}
 
-.lesson-number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  background: #eef2f7;
-  color: #475569;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.lesson-link-card.active .lesson-number {
-  background: #0b63f6;
-  color: #ffffff;
-}
 
 .learn-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
   align-items: start;
 }
 
 .lesson-content {
-  padding: 0;
-  overflow: hidden;
+  width: 100%;
+}
+
+.lesson-stream {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 
 .lesson-header {
@@ -558,10 +582,7 @@ textarea {
   background: #fbfdff;
 }
 
-.lesson-stream {
-  display: grid;
-  gap: 0;
-}
+
 
 .learning-block {
   display: grid;
@@ -695,12 +716,7 @@ textarea {
   font-weight: 700;
 }
 
-.assistant-panel {
-  position: sticky;
-  top: 86px;
-  min-height: 520px;
-  padding: 16px;
-}
+
 
 .assistant-placeholder {
   display: flex;
@@ -735,8 +751,8 @@ textarea {
 
 .author-editor-layout {
   display: grid;
-  grid-template-columns: 248px minmax(760px, 1fr) 300px;
-  gap: 16px;
+  grid-template-columns: 240px minmax(0, 1fr) 280px;
+  gap: 12px;
   align-items: start;
   margin-top: 20px;
   min-width: 0;
@@ -929,6 +945,12 @@ textarea {
   gap: 14px;
   min-width: 0;
   align-items: start;
+}
+
+.assistant-chat {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
 }
 
 .author-block-list {
