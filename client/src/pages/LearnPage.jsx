@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import CodeEditor from "../components/CodeEditor";
@@ -13,6 +13,13 @@ const STUDENT_MODES = [
   { id: 'example', label: '💡 Пример' },
   { id: 'search_info', label: '🔍 Поиск' }
 ];
+
+const localizeError = (msg) => {
+  if (msg === "You do not have access to this action") {
+    return "Вы зашли как автор и не можете проходить курс.\nПожалуйста, перезайдите под аккаунтом студента.";
+  }
+  return msg;
+};
 
 export default function LearnPage() {
   const navigate = useNavigate();
@@ -29,6 +36,22 @@ export default function LearnPage() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [activeMode, setActiveMode] = useState(null);
   const [quizAnswers, setQuizAnswers] = useState({});
+
+  const sortedBlocks = useMemo(() => {
+    if (!lesson?.blocks) return [];
+    return [...lesson.blocks].sort((a, b) => (a.position || 0) - (b.position || 0));
+  }, [lesson?.blocks]);
+
+  const activeLessonRef = useRef(null);
+
+  useEffect(() => {
+    if (activeLessonRef.current) {
+      activeLessonRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+      });
+    }
+  }, [lesson?.id]);
 
 
 
@@ -95,6 +118,12 @@ export default function LearnPage() {
 
   async function handleCompleteBlock(blockId) {
     if (!user) return;
+
+    setSubmissionState((current) => ({
+      ...current,
+      [blockId]: { submitting: true, error: "" }
+    }));
+
     try {
       await apiRequest(`/api/blocks/${blockId}/complete`, {
         method: "POST",
@@ -104,8 +133,16 @@ export default function LearnPage() {
         ...current,
         blocks: current.blocks.map((b) => (b.id === blockId ? { ...b, is_completed: true } : b))
       }));
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: { submitting: false, error: "" }
+      }));
     } catch (requestError) {
       console.error("Failed to mark block as completed:", requestError);
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: { submitting: false, error: localizeError(requestError.message) }
+      }));
     }
   }
 
@@ -150,7 +187,7 @@ export default function LearnPage() {
         ...current,
         [blockId]: {
           submitting: false,
-          error: requestError.message,
+          error: localizeError(requestError.message),
           submission: null
         }
       }));
@@ -180,7 +217,7 @@ export default function LearnPage() {
         ...current,
         [blockId]: {
           submitting: false,
-          error: "Enter your solution code before submitting.",
+          error: "Пожалуйста, введите код решения перед отправкой.",
           submission: null
         }
       }));
@@ -230,7 +267,7 @@ export default function LearnPage() {
         ...current,
         [blockId]: {
           submitting: false,
-          error: requestError.message,
+          error: localizeError(requestError.message),
           submission: null
         }
       }));
@@ -274,7 +311,6 @@ export default function LearnPage() {
   return (
     <AppLayout
       title={lesson?.course_title || "Learning Workspace"}
-      subtitle="Read the theory, solve the task, and keep lesson context close."
       user={user}
       onLogout={handleLogout}
     >
@@ -296,6 +332,7 @@ export default function LearnPage() {
                 return (
                   <Link
                     key={item.id}
+                    ref={item.id === lesson?.id ? activeLessonRef : null}
                     className={`lesson-link-card ${item.id === lesson?.id ? "active" : ""}`}
                     to={`/learn/${courseId}/${item.id}`}
                   >
@@ -319,7 +356,7 @@ export default function LearnPage() {
                 </div>
 
                 <div className="lesson-stream">
-                  {lesson.blocks.map((block) => {
+                  {sortedBlocks.map((block, index) => {
                     const isCodeBlock = ["practice", "test"].includes(block.type);
                     const blockState = submissionState[block.id] || {};
                     const isCompleted = block.is_completed;
@@ -328,7 +365,7 @@ export default function LearnPage() {
                       <article key={block.id} className={`learning-block ${isCodeBlock ? "with-editor" : ""} ${isCompleted ? "completed-block" : ""}`} style={isCompleted ? { borderLeft: '4px solid #10b981', background: 'rgba(16, 185, 129, 0.05)' } : {}}>
                         <div className="block-meta">
                           <span className="tag-chip">{block.type}</span>
-                          <span>Step {block.position}</span>
+                          <span>Step {index + 1}</span>
                           {isCompleted && (
                             <span style={{ color: '#10b981', marginLeft: 'auto', fontWeight: 'bold' }}>
                               ✓ Выполнено
@@ -346,16 +383,27 @@ export default function LearnPage() {
                         </div>
 
                         {!isCodeBlock && !isCompleted && user && (
-                          <div className="block-actions" style={{ marginTop: '1rem' }}>
-                            <button type="button" className="secondary-button" onClick={() => handleCompleteBlock(block.id)}>
-                              Отметить как прочитанное
+                          <div className="block-actions">
+                            {blockState.error && (
+                              <div className="check-result error-result" style={{ margin: 0, flex: 1 }}>
+                                <span>Ошибка</span>
+                                <p className="error">{blockState.error}</p>
+                              </div>
+                            )}
+                            <button 
+                              type="button" 
+                              className="secondary-button" 
+                              disabled={blockState.submitting}
+                              onClick={() => handleCompleteBlock(block.id)}
+                            >
+                              {blockState.submitting ? "Обработка..." : "Отметить как прочитанное"}
                             </button>
                           </div>
                         )}
 
                         {block.quiz_data && block.quiz_data.options && block.quiz_data.options.length > 0 ? (
-                          <div className="quiz-renderer" style={{ marginTop: '1.5rem', background: '#fff', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--border-color, #cbd5e1)' }}>
-                            <h4 style={{ marginBottom: '1rem' }}>Опрос</h4>
+                          <div className="quiz-renderer">
+                            <h4>Опрос</h4>
                             <form onSubmit={(e) => { e.preventDefault(); handleSubmitQuiz(block.id); }}>
                               {block.quiz_data.options.map((opt, idx) => {
                                 const isMultiple = block.quiz_data.quiz_type === "multiple";

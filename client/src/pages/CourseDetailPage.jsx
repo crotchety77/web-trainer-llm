@@ -70,7 +70,6 @@ export default function CourseDetailPage() {
   return (
     <AppLayout
       title={course?.title || "Course"}
-      subtitle="Course overview, lessons list, and enrollment action."
       user={user}
       onLogout={handleLogout}
     >

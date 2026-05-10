@@ -97,7 +97,7 @@ textarea {
 .page-shell {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 32px 24px 48px;
+  padding: 1px 1px 1px;
 }
 
 .page-shell:has(.author-editor-layout),
@@ -108,7 +108,54 @@ textarea {
 }
 
 .page-hero {
-  margin-bottom: 20px;
+  margin-bottom: 0px;
+}
+
+.page-hero h1 {
+  margin-block: 0.33em;
+}
+
+h4 {
+  margin-block: 0.33em;
+}
+
+.quiz-renderer {
+  margin-top: 1.5rem;
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  max-width: 540px;
+  margin-inline: auto;
+}
+
+.block-actions {
+  width: 100%;
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+}
+
+.block-actions .check-result {
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  /* font-size: 13px; */
+}
+
+.block-actions .check-result p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.block-actions .check-result span {
+  margin-right: 4px;
 }
 
 .card,
@@ -461,7 +508,7 @@ textarea {
   box-shadow: 0 8px 24px rgba(45, 87, 152, 0.05);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 48px);
+  max-height: calc(100vh - 160px);
   position: sticky;
   top: 24px;
   overflow: hidden;
@@ -474,7 +521,7 @@ textarea {
   padding: 20px;
   position: sticky;
   top: 24px;
-  max-height: calc(100vh - 48px);
+  max-height: calc(100vh - 160px);
   overflow-y: auto;
 }
 
@@ -561,7 +608,7 @@ textarea {
 .learn-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 24px;
+  gap: 16px;
   align-items: start;
 }
 
@@ -574,6 +621,19 @@ textarea {
   flex: 1;
   min-height: 0;
   width: 100%;
+}
+
+.lesson-stream::-webkit-scrollbar {
+  width: 5px;
+}
+
+.lesson-stream::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+.lesson-stream::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .lesson-header {
@@ -661,7 +721,6 @@ textarea {
   display: grid;
   align-content: start;
   gap: 10px;
-  min-height: 260px;
   padding: 12px;
   border: 1px solid #dbe4ef;
   border-radius: 8px;
@@ -689,6 +748,11 @@ textarea {
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.check-result p {
+  white-space: pre-wrap;
+  margin: 0;
 }
 
 .success-result {
