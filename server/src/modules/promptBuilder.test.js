@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeMessages, selectSystemPrompt, buildPrompt } from "./promptBuilder.js";
+import { normalizeMessages, selectSystemPrompt, buildPrompt, serializeStepsContext } from "./promptBuilder.js";
 import { SYSTEM_PROMPTS } from "../routes/templatesAi.js";
 
 describe("promptBuilder module", () => {
@@ -85,6 +85,66 @@ describe("promptBuilder module", () => {
       expect(result[0]).toEqual({ role: "system", text: SYSTEM_PROMPTS.author.structure });
       expect(result[1]).toEqual({ role: "user", text: "Контекст урока:\nDraft text about React" });
       expect(result[2]).toEqual({ role: "user", text: "Format this" });
+    });
+
+    it("should inject serialized steps context between lesson context and chat history", () => {
+      const result = buildPrompt({
+        userRole: "student",
+        mode: "code_help",
+        lessonContext: "Урок: JavaScript\n\nШаги:\n1. Functions",
+        stepsContext: [
+          {
+            stepNumber: 1,
+            blockId: 42,
+            title: "Functions",
+            type: "practice",
+            task: "Write add(a, b)",
+            language: "javascript",
+            studentCode: "function add(a, b) {\n  return a + b\n}",
+            submissionStatus: "failed",
+            submissionMessage: "1 out of 1 tests failed.",
+            stderr: "SyntaxError: Unexpected token",
+            failedTests: [
+              {
+                testNumber: 1,
+                input: "1 2",
+                expected: "3",
+                actual: "SyntaxError",
+                exitCode: 1
+              }
+            ]
+          }
+        ],
+        chatHistory: [{ role: "assistant", text: "Show me the step." }],
+        userInput: "@step1 why does it fail?"
+      });
+
+      expect(result).toHaveLength(5);
+      expect(result[1].text).toContain("Контекст урока:");
+      expect(result[2].text).toContain("Контекст шагов:");
+      expect(result[2].text).toContain("=== STEP 1 ===");
+      expect(result[2].text).toContain("Student code:");
+      expect(result[2].text).toContain("SyntaxError: Unexpected token");
+      expect(result[3]).toEqual({ role: "assistant", text: "Show me the step." });
+      expect(result[4]).toEqual({ role: "user", text: "@step1 why does it fail?" });
+    });
+  });
+
+  describe("serializeStepsContext()", () => {
+    it("should serialize step objects as compact markdown", () => {
+      const result = serializeStepsContext({
+        stepNumber: 2,
+        title: "Loops",
+        language: "javascript",
+        task: "Print numbers",
+        studentCode: "for (let i = 0; i < 3; i++) console.log(i);",
+        submissionStatus: "passed"
+      });
+
+      expect(result).toContain("=== STEP 2 ===");
+      expect(result).toContain("Title: Loops");
+      expect(result).toContain("```javascript");
+      expect(result).toContain("Submission status: passed");
     });
   });
 

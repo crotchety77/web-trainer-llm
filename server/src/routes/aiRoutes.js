@@ -7,7 +7,7 @@ const router = Router();
 
 router.post("/chat", authMiddleware, async (request, response) => {
   // Ожидаем сырые данные вместо готового массива
-  const { userInput, lessonContext, chatHistory, mode } = request.body;
+  const { userInput, lessonContext, stepsContext, chatHistory, mode } = request.body;
   const userRole = request.user?.role;
 
   if (!userInput || typeof userInput !== "string") {
@@ -24,6 +24,7 @@ router.post("/chat", authMiddleware, async (request, response) => {
       userRole,
       mode,
       lessonContext,
+      stepsContext,
       chatHistory,
       userInput
     });

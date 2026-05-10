@@ -158,6 +158,9 @@ describe("course routes", () => {
         ]
       })
       .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
         rows: [
           {
             id: 1,
@@ -166,7 +169,7 @@ describe("course routes", () => {
             code: "function solve() { return true; }",
             language: "javascript",
             status: "accepted",
-            result_message: "Solution submitted successfully. Automatic code checks are mocked for now.",
+            result_message: "Solution submitted successfully. No automated tests configured.",
             tests_result: {
               total: 1,
               passed: 1,
@@ -186,13 +189,13 @@ describe("course routes", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.submission.status).toBe("accepted");
-    expect(pool.query).toHaveBeenLastCalledWith(expect.stringContaining("INSERT INTO submissions"), [
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO submissions"), [
       7,
       102,
       "function solve() { return true; }",
       "javascript",
       "accepted",
-      "Solution submitted successfully. Automatic code checks are mocked for now.",
+      "Solution submitted successfully. No automated tests configured.",
       JSON.stringify({
         total: 1,
         passed: 1,

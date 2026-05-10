@@ -833,6 +833,13 @@ h4 {
   margin-top: auto;
 }
 
+.assistant-context-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
 .assistant-input-row input {
   min-width: 0;
   padding: 10px 12px;

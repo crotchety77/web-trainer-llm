@@ -25,6 +25,7 @@ export default function CodeEditor({
   onChange,
   language = "javascript",
   height = 250,
+  ariaLabel = "Code editor",
   readOnly = false
 }) {
   const editorRef = useRef(null);
@@ -59,6 +60,7 @@ export default function CodeEditor({
           tabSize: 2,
           wordWrap: "on",
           readOnly: readOnly,
+          ariaLabel,
           padding: { top: 8, bottom: 8 }
         }}
       />

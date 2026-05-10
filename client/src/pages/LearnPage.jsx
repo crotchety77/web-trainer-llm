@@ -6,6 +6,8 @@ import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import ReactMarkdown from "react-markdown";
 import { clearToken, getAuthHeaders } from "../lib/auth";
+import { extractStepRefs } from "../utils/extractStepRefs";
+import { buildLessonSummaryContext, buildStepsContext } from "../utils/aiContextBuilders";
 
 const STUDENT_MODES = [
   { id: 'code_help', label: '🐞 Помощь с кодом' },
@@ -41,6 +43,7 @@ export default function LearnPage() {
     if (!lesson?.blocks) return [];
     return [...lesson.blocks].sort((a, b) => (a.position || 0) - (b.position || 0));
   }, [lesson?.blocks]);
+  const detectedStepRefs = useMemo(() => extractStepRefs(chatInput), [chatInput]);
 
   const activeLessonRef = useRef(null);
 
@@ -288,9 +291,13 @@ export default function LearnPage() {
     setIsChatLoading(true);
 
     try {
-      const lessonContext = lesson
-        ? `Текущий урок: "${lesson.title}".\nМатериалы урока:\n` + lesson.blocks.map(b => `[${b.type}] ${b.title}: ${b.content}`).join('\n')
-        : "Контекст урока пока недоступен.";
+      const lessonContext = buildLessonSummaryContext(lesson, sortedBlocks);
+      const stepsContext = buildStepsContext({
+        text: userText,
+        sortedBlocks,
+        solutions,
+        submissionState
+      });
 
       const response = await apiRequest("/api/ai/chat", {
         method: "POST",
@@ -298,6 +305,7 @@ export default function LearnPage() {
         body: JSON.stringify({ 
           userInput: userText,
           lessonContext,
+          stepsContext,
           chatHistory: chatMessages,
           mode: activeMode 
         })
@@ -453,6 +461,7 @@ export default function LearnPage() {
                                 <span>{block.quiz_data?.language || "javascript"}</span>
                               </div>
                                 <CodeEditor
+                                  ariaLabel={`Solution code for ${block.title}`}
                                   value={solutions[block.id] !== undefined ? solutions[block.id] : (block.quiz_data?.placeholder_code || "")}
                                   onChange={(val) => handleSolutionChange(block.id, val)}
                                   language={block.quiz_data?.language || "javascript"}
@@ -576,18 +585,29 @@ export default function LearnPage() {
                   {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Typing...</div>}
                 </div>
 
-                <form className="assistant-input-row" onSubmit={handleChatSubmit}>
-                  <input 
-                    type="text" 
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder={user ? "Type your question..." : "Log in to use chat..."}
-                    disabled={isChatLoading || !user} 
-                  />
-                  <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !user}>
-                    Send
-                  </button>
-                </form>
+                <div>
+                  {detectedStepRefs.length > 0 ? (
+                    <div className="assistant-context-hints" aria-label="Selected step context">
+                      {detectedStepRefs.map((stepNumber) => (
+                        <span key={stepNumber} className="tag-chip">
+                          @step{stepNumber}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <form className="assistant-input-row" onSubmit={handleChatSubmit}>
+                    <input 
+                      type="text" 
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder={user ? "Type @step2 and ask your question..." : "Log in to use chat..."}
+                      disabled={isChatLoading || !user} 
+                    />
+                    <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !user}>
+                      Send
+                    </button>
+                  </form>
+                </div>
               </aside>
             </div>
           </div>
