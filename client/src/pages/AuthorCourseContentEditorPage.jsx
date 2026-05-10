@@ -107,26 +107,7 @@ export default function AuthorCourseContentEditorPage() {
     return lessons.find((lesson) => lesson.id === selectedLessonId) || null;
   }, [lessons, selectedLessonId]);
 
-  const lessonSections = useMemo(() => {
-    const sectionSize = 6;
 
-    return lessons.reduce((sections, item) => {
-      const sectionIndex = Math.floor((Number(item.position || 1) - 1) / sectionSize);
-      const title = `Section ${sectionIndex + 1}`;
-      const existingSection = sections.find((section) => section.title === title);
-
-      if (existingSection) {
-        existingSection.lessons.push(item);
-        return sections;
-      }
-
-      sections.push({
-        title,
-        lessons: [item]
-      });
-      return sections;
-    }, []);
-  }, [lessons]);
 
   const selectedBlock = useMemo(() => {
     return (lessonDetail?.blocks || []).find((block) => block.id === activeBlockId) || null;
@@ -263,7 +244,10 @@ export default function AuthorCourseContentEditorPage() {
       const response = await apiRequest(`/api/courses/${params.id}/lessons`, {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify(createLessonForm)
+        body: JSON.stringify({
+          ...createLessonForm,
+          position: lessons.length + 1
+        })
       });
 
       const createdLesson = response.lesson;
@@ -649,67 +633,57 @@ export default function AuthorCourseContentEditorPage() {
               <h2>Lessons</h2>
             </div>
 
-            <div className="lesson-accordion">
-              {lessonSections.map((section) => {
-                const isCurrentSection = section.lessons.some((lesson) => lesson.id === selectedLessonId);
+            <div className="stack-list" style={{ marginTop: '1rem' }}>
+              {lessons.map((lesson, index) => {
+                const displayPosition = index + 1;
 
                 return (
-                  <details key={section.title} className="lesson-section" open={isCurrentSection}>
-                    <summary>
-                      <span>{section.title}</span>
-                      <span className="lesson-count">{section.lessons.length}</span>
-                    </summary>
-                    <div className="lesson-section-list">
-                      {section.lessons.map((lesson) => (
-                        <button
-                          key={lesson.id}
-                          type="button"
-                          draggable
-                          className={[
-                            "lesson-link-card button-card",
-                            lesson.id === selectedLessonId ? "active" : "",
-                            lesson.id === draggedLessonId ? "dragging" : "",
-                            lesson.id === lessonDropTargetId ? "drop-target" : ""
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                          onDragStart={(event) => {
-                            event.dataTransfer.effectAllowed = "move";
-                            setDraggedLessonId(lesson.id);
-                          }}
-                          onDragEnter={(event) => {
-                            event.preventDefault();
-                            if (draggedLessonId && draggedLessonId !== lesson.id) {
-                              setLessonDropTargetId(lesson.id);
-                            }
-                          }}
-                          onDragOver={(event) => {
-                            event.preventDefault();
-                            event.dataTransfer.dropEffect = "move";
-                          }}
-                          onDragLeave={() => {
-                            if (lessonDropTargetId === lesson.id) {
-                              setLessonDropTargetId(null);
-                            }
-                          }}
-                          onDrop={(event) => {
-                            event.preventDefault();
-                            handleLessonDrop(lesson.id);
-                          }}
-                          onDragEnd={() => {
-                            setDraggedLessonId(null);
-                            setLessonDropTargetId(null);
-                          }}
-                          onClick={() => setSelectedLessonId(lesson.id)}
-                        >
-                          <span className="lesson-number">{lesson.position}</span>
-                          <strong>
-                            {lesson.position}. {lesson.title}
-                          </strong>
-                        </button>
-                      ))}
-                    </div>
-                  </details>
+                  <button
+                    key={lesson.id}
+                    type="button"
+                    draggable
+                    className={[
+                      "lesson-link-card button-card",
+                      lesson.id === selectedLessonId ? "active" : "",
+                      lesson.id === draggedLessonId ? "dragging" : "",
+                      lesson.id === lessonDropTargetId ? "drop-target" : ""
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      setDraggedLessonId(lesson.id);
+                    }}
+                    onDragEnter={(event) => {
+                      event.preventDefault();
+                      if (draggedLessonId && draggedLessonId !== lesson.id) {
+                        setLessonDropTargetId(lesson.id);
+                      }
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
+                    }}
+                    onDragLeave={() => {
+                      if (lessonDropTargetId === lesson.id) {
+                        setLessonDropTargetId(null);
+                      }
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      handleLessonDrop(lesson.id);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedLessonId(null);
+                      setLessonDropTargetId(null);
+                    }}
+                    onClick={() => setSelectedLessonId(lesson.id)}
+                  >
+                    <span className="lesson-number">{displayPosition}</span>
+                    <strong>
+                      {lesson.title}
+                    </strong>
+                  </button>
                 );
               })}
             </div>

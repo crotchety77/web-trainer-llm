@@ -115,8 +115,15 @@ textarea {
   background: #ffffff;
   border: 1px solid #d9e3f5;
   border-radius: 18px;
-  padding: 24px;
+  padding: 20px;
   box-shadow: 0 18px 40px rgba(45, 87, 152, 0.08);
+}
+
+.sidebar-panel h3 {
+  margin: 0 0 16px 4px;
+  font-size: 1.1rem;
+  color: #475569;
+  font-weight: 700;
 }
 
 .card {
@@ -209,14 +216,14 @@ textarea {
 .course-list,
 .stack-list {
   display: grid;
-  gap: 18px;
+  gap: 2px;
 }
 
 .profile-grid {
   margin-top: 24px;
 }
 
-.profile-grid > div {
+.profile-grid>div {
   display: grid;
   gap: 4px;
   padding: 14px 16px;
@@ -292,30 +299,64 @@ textarea {
   display: grid;
   gap: 20px;
   grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  align-items: start;
+  align-content: start;
 }
 
 .detail-main,
 .lesson-content {
   display: grid;
   gap: 16px;
+  align-items: start;
 }
 
 .lesson-link-card,
 .button-card {
-  display: block;
+  display: flex;
+  gap: 12px;
+  align-items: center;
   width: 100%;
   text-align: left;
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid #d8e4f7;
-  background: #f8fbff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
   color: #18212f;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lesson-link-card:hover,
+.button-card:hover {
+  background: #f1f5f9;
 }
 
 .lesson-link-card.active,
 .button-card.active {
-  background: #eaf2ff;
-  border-color: #9cc0ff;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.lesson-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.lesson-link-card.active .lesson-number,
+.button-card.active .lesson-number {
+  background: #bae6fd;
+  color: #0369a1;
 }
 
 .block-card {
@@ -622,7 +663,7 @@ textarea {
   background: #f8fafc;
 }
 
-.check-result > span {
+.check-result>span {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
@@ -933,7 +974,7 @@ textarea {
   font-size: 14px;
 }
 
-.author-block-list button > span:last-child {
+.author-block-list button>span:last-child {
   color: #64748b;
   font-size: 12px;
   font-weight: 700;
@@ -956,7 +997,7 @@ textarea {
   min-width: 0;
 }
 
-.author-block-editor-header > div {
+.author-block-editor-header>div {
   min-width: 0;
 }
 
@@ -1051,6 +1092,7 @@ textarea {
 }
 
 @media (max-width: 900px) {
+
   .course-card,
   .detail-grid,
   .learn-layout,

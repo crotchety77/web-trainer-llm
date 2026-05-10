@@ -30,26 +30,7 @@ export default function LearnPage() {
   const [activeMode, setActiveMode] = useState(null);
   const [quizAnswers, setQuizAnswers] = useState({});
 
-  const lessonSections = useMemo(() => {
-    const sectionSize = 6;
 
-    return lessons.reduce((sections, item) => {
-      const sectionIndex = Math.floor((Number(item.position || 1) - 1) / sectionSize);
-      const title = `Section ${sectionIndex + 1}`;
-      const existingSection = sections.find((section) => section.title === title);
-
-      if (existingSection) {
-        existingSection.lessons.push(item);
-        return sections;
-      }
-
-      sections.push({
-        title,
-        lessons: [item]
-      });
-      return sections;
-    }, []);
-  }, [lessons]);
 
   useEffect(() => {
     let cancelled = false;
@@ -308,34 +289,24 @@ export default function LearnPage() {
                 <span className="eyebrow">Course</span>
                 <h2>Lessons</h2>
               </div>
-              <div className="lesson-accordion">
-                {lessonSections.map((section) => {
-                  const isCurrentSection = section.lessons.some((item) => item.id === lesson.id);
+            <div className="stack-list" style={{ marginTop: '1rem' }}>
+              {lessons.map((item, index) => {
+                const displayPosition = index + 1;
 
-                  return (
-                    <details key={section.title} className="lesson-section" open={isCurrentSection}>
-                      <summary>
-                        <span>{section.title}</span>
-                        <span className="lesson-count">{section.lessons.length}</span>
-                      </summary>
-                      <div className="lesson-section-list">
-                        {section.lessons.map((item) => (
-                          <Link
-                            key={item.id}
-                            className={`lesson-link-card ${item.id === lesson.id ? "active" : ""}`}
-                            to={`/learn/${courseId}/${item.id}`}
-                          >
-                            <span className="lesson-number">{item.position}</span>
-                            <strong>
-                              {item.position}. {item.title}
-                            </strong>
-                          </Link>
-                        ))}
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
+                return (
+                  <Link
+                    key={item.id}
+                    className={`lesson-link-card ${item.id === lesson?.id ? "active" : ""}`}
+                    to={`/learn/${courseId}/${item.id}`}
+                  >
+                    <span className="lesson-number">{displayPosition}</span>
+                    <strong>
+                      {item.title}
+                    </strong>
+                  </Link>
+                );
+              })}
+            </div>
             </aside>
 
             <div className="learn-workspace">

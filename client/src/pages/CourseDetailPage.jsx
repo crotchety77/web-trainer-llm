@@ -124,7 +124,8 @@ export default function CourseDetailPage() {
             <aside className="sidebar-panel">
               <h3>Lessons</h3>
               <div className="stack-list">
-                {(course.lessons || []).map((lesson) => {
+                {(course.lessons || []).map((lesson, index) => {
+                  const displayPosition = index + 1;
                   // Разрешаем доступ авторам или студентам, которые уже записались
                   const canAccess = user && (user.role === "author" || course.is_enrolled);
                   
@@ -134,8 +135,9 @@ export default function CourseDetailPage() {
                       className="lesson-link-card"
                       to={`/learn/${course.id}/${lesson.id}`}
                     >
+                      <span className="lesson-number">{displayPosition}</span>
                       <strong>
-                        {lesson.position}. {lesson.title}
+                        {lesson.title}
                       </strong>
                     </Link>
                   ) : (
@@ -145,8 +147,9 @@ export default function CourseDetailPage() {
                       style={{ opacity: 0.7, cursor: "not-allowed" }}
                       title={user ? "Сначала запишитесь на курс" : "Log in to access lesson"}
                     >
+                      <span className="lesson-number">{displayPosition}</span>
                       <strong>
-                        {lesson.position}. {lesson.title}
+                        {lesson.title}
                       </strong>
                     </div>
                   );
