@@ -6,12 +6,33 @@ import { getApiUrl, apiRequest } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
 import { useToast } from "../hooks/useToast";
 
+function isValidUserLlmApiKey(value) {
+  const trimmed = value.trim();
+  return trimmed.length >= 20 && trimmed.length <= 300 && !/\s/.test(trimmed);
+}
+
+function isValidUserLlmFolderId(value) {
+  const trimmed = value.trim();
+  return trimmed.length >= 6 && trimmed.length <= 128 && /^[A-Za-z0-9_-]+$/.test(trimmed);
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, loading, error } = useAuthUser({ required: true });
   const toast = useToast();
   const [enrollments, setEnrollments] = useState([]);
   const [loadingEnrollments, setLoadingEnrollments] = useState(false);
+  const [hasUserApiKey, setHasUserApiKey] = useState(false);
+  const [hasUserFolderId, setHasUserFolderId] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [folderIdInput, setFolderIdInput] = useState("");
+  const [apiKeySaving, setApiKeySaving] = useState(false);
+  const [folderIdSaving, setFolderIdSaving] = useState(false);
+
+  useEffect(() => {
+    setHasUserApiKey(Boolean(user?.has_llm_api_key));
+    setHasUserFolderId(Boolean(user?.has_llm_folder_id));
+  }, [user?.has_llm_api_key, user?.has_llm_folder_id]);
 
   useEffect(() => {
     if (user?.role === "student") {
@@ -28,6 +49,102 @@ export default function DashboardPage() {
     navigate("/login");
   }
 
+  async function handleApiKeySubmit(event) {
+    event.preventDefault();
+
+    const trimmedApiKey = apiKeyInput.trim();
+
+    if (!isValidUserLlmApiKey(trimmedApiKey)) {
+      toast.error("API key must be 20-300 characters and must not contain spaces.");
+      return;
+    }
+
+    setApiKeySaving(true);
+
+    try {
+      const data = await apiRequest("/api/auth/me/api-key", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ apiKey: trimmedApiKey })
+      });
+
+      setHasUserApiKey(Boolean(data.has_llm_api_key));
+      setApiKeyInput("");
+      toast.success("API key saved.");
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setApiKeySaving(false);
+    }
+  }
+
+  async function handleApiKeyDelete() {
+    setApiKeySaving(true);
+
+    try {
+      const data = await apiRequest("/api/auth/me/api-key", {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+
+      setHasUserApiKey(Boolean(data.has_llm_api_key));
+      setApiKeyInput("");
+      toast.success("API key removed.");
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setApiKeySaving(false);
+    }
+  }
+
+  async function handleFolderIdSubmit(event) {
+    event.preventDefault();
+
+    const trimmedFolderId = folderIdInput.trim();
+
+    if (!isValidUserLlmFolderId(trimmedFolderId)) {
+      toast.error("Folder ID must be 6-128 characters and contain only letters, numbers, underscores, or hyphens.");
+      return;
+    }
+
+    setFolderIdSaving(true);
+
+    try {
+      const data = await apiRequest("/api/auth/me/folder-id", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ folderId: trimmedFolderId })
+      });
+
+      setHasUserFolderId(Boolean(data.has_llm_folder_id));
+      setFolderIdInput("");
+      toast.success("Folder ID saved.");
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setFolderIdSaving(false);
+    }
+  }
+
+  async function handleFolderIdDelete() {
+    setFolderIdSaving(true);
+
+    try {
+      const data = await apiRequest("/api/auth/me/folder-id", {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+
+      setHasUserFolderId(Boolean(data.has_llm_folder_id));
+      setFolderIdInput("");
+      toast.success("Folder ID removed.");
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setFolderIdSaving(false);
+    }
+  }
+
   if (loading) {
     return <main className="centered-state">Loading profile...</main>;
   }
@@ -39,7 +156,7 @@ export default function DashboardPage() {
       user={user}
       onLogout={handleLogout}
     >
-      <section className="panel">
+      <section className="panel dashboard-panel">
         {error ? (
           <p className="helper-text">
             Сессия истекла. <Link to="/login">Войдите снова</Link>.
@@ -65,6 +182,77 @@ export default function DashboardPage() {
               <strong>{getApiUrl()}</strong>
             </div>
           </div>
+        ) : null}
+
+        {user ? (
+          <section className="profile-api-key-settings" aria-label="LLM API key settings">
+            <div>
+              <h2>LLM API key</h2>
+              <p className="helper-text">
+                {hasUserApiKey
+                  ? hasUserFolderId
+                    ? "Personal Yandex credentials are configured for assistant requests."
+                    : "Add your Yandex Folder ID to enable assistant chat."
+                  : "Assistant chat is unavailable until you add a personal API key and Folder ID."}
+              </p>
+            </div>
+
+            <form className="profile-api-key-form" onSubmit={handleApiKeySubmit}>
+              <label className="profile-api-key-field">
+                <span className="profile-label">Personal Yandex API key</span>
+                <input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(event) => setApiKeyInput(event.target.value)}
+                  placeholder={hasUserApiKey ? "Enter a new key to replace the saved one" : "Enter your API key"}
+                  autoComplete="off"
+                />
+              </label>
+              <div className="profile-api-key-actions">
+                <button type="submit" disabled={apiKeySaving || !apiKeyInput.trim()}>
+                  {apiKeySaving ? "Saving..." : hasUserApiKey ? "Replace key" : "Save key"}
+                </button>
+                {hasUserApiKey ? (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleApiKeyDelete}
+                    disabled={apiKeySaving}
+                  >
+                    Delete key
+                  </button>
+                ) : null}
+              </div>
+            </form>
+
+            <form className="profile-api-key-form" onSubmit={handleFolderIdSubmit}>
+              <label className="profile-api-key-field">
+                <span className="profile-label">Personal Yandex Folder ID</span>
+                <input
+                  type="text"
+                  value={folderIdInput}
+                  onChange={(event) => setFolderIdInput(event.target.value)}
+                  placeholder="Enter your Folder ID"
+                  autoComplete="off"
+                />
+              </label>
+              <div className="profile-api-key-actions">
+                <button type="submit" disabled={folderIdSaving || !folderIdInput.trim()}>
+                  {folderIdSaving ? "Saving..." : hasUserFolderId ? "Replace Folder ID" : "Save Folder ID"}
+                </button>
+                {hasUserFolderId ? (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleFolderIdDelete}
+                    disabled={folderIdSaving}
+                  >
+                    Delete Folder ID
+                  </button>
+                ) : null}
+              </div>
+            </form>
+          </section>
         ) : null}
 
         {user?.role === "author" ? (

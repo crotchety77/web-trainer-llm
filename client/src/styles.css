@@ -100,6 +100,10 @@ textarea {
   padding: 1px 1px 1px;
 }
 
+.page-shell:has(.dashboard-panel) {
+  max-width: 800px;
+}
+
 .page-shell:has(.author-editor-layout),
 .page-shell:has(.learn-layout) {
   max-width: 1720px;
@@ -410,6 +414,65 @@ h4 {
 
 .profile-grid {
   margin-top: 24px;
+}
+
+.profile-api-key-settings {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+  padding: 20px 0;
+  border-top: 1px solid #d9e3f5;
+  border-bottom: 1px solid #d9e3f5;
+}
+
+.profile-api-key-settings h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.profile-api-key-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 520px) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.profile-api-key-field {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-api-key-field input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #bfd0eb;
+  background: #fdfefe;
+}
+
+.profile-api-key-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.profile-api-key-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  background: #0b63f6;
+  color: #ffffff;
+}
+
+.profile-api-key-actions .secondary-button {
+  background: #e6eefc;
+  color: #20427a;
 }
 
 .profile-grid>div {
@@ -1386,6 +1449,14 @@ h4 {
 
   .author-block-list {
     max-height: 280px;
+  }
+
+  .profile-api-key-form {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-api-key-actions {
+    justify-content: flex-start;
   }
 }
 

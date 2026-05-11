@@ -1,16 +1,15 @@
-import { config } from "../config.js";
-
 export function getAiStatus() {
-  const isConfigured = Boolean(config.yandexApiKey && config.yandexFolderId);
-  
   return {
-    enabled: isConfigured,
-    message: isConfigured ? "Yandex GPT is ready" : "Yandex GPT API is not configured (.env missing keys)"
+    enabled: true,
+    message: "Yandex GPT uses per-user API key and folder settings"
   };
 }
 
-export async function generateChatResponse(messages) {
-  if (!config.yandexApiKey || !config.yandexFolderId) {
+export async function generateChatResponse(messages, options = {}) {
+  const apiKey = options.apiKey;
+  const folderId = options.folderId;
+
+  if (!apiKey || !folderId) {
     throw new Error("Yandex GPT is not configured");
   }
 
@@ -18,10 +17,10 @@ export async function generateChatResponse(messages) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Api-Key ${config.yandexApiKey}`
+      "Authorization": `Api-Key ${apiKey}`
     },
     body: JSON.stringify({
-      modelUri: `gpt://${config.yandexFolderId}/yandexgpt/latest`,
+      modelUri: `gpt://${folderId}/yandexgpt/latest`,
       completionOptions: {
         stream: false,
         temperature: 0.6,
@@ -32,8 +31,8 @@ export async function generateChatResponse(messages) {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Yandex GPT API error: ${response.status} ${errorText}`);
+    await response.text().catch(() => "");
+    throw new Error(`Yandex GPT API error: ${response.status}`);
   }
 
   const data = await response.json();

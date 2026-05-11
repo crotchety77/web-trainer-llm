@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import CodeEditor from "../components/CodeEditor";
 import AssistantTextarea from "../components/AssistantTextarea";
+import AssistantUnavailableNotice from "../components/AssistantUnavailableNotice";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import ReactMarkdown from "react-markdown";
@@ -41,6 +42,7 @@ export default function LearnPage() {
   const navigate = useNavigate();
   const { courseId, lessonId } = useParams();
   const { user } = useAuthUser({ required: true });
+  const isAssistantAvailable = Boolean(user?.has_llm_api_key && user?.has_llm_folder_id);
   const toast = useToast();
   const [lessons, setLessons] = useState([]);
   const [lesson, setLesson] = useState(null);
@@ -307,7 +309,7 @@ export default function LearnPage() {
 
   async function handleChatSubmit(event) {
     event?.preventDefault();
-    if (!chatInput.trim() || isChatLoading) return;
+    if (!chatInput.trim() || isChatLoading || !isAssistantAvailable) return;
 
     const userText = chatInput.trim();
     setChatInput("");
@@ -571,8 +573,8 @@ export default function LearnPage() {
                     <button
                       key={mode.id}
                       type="button"
-                      onClick={() => user && setActiveMode(activeMode === mode.id ? null : mode.id)}
-                      disabled={!user}
+                      onClick={() => isAssistantAvailable && setActiveMode(activeMode === mode.id ? null : mode.id)}
+                      disabled={!isAssistantAvailable}
                       style={{
                         fontSize: "0.75rem",
                         minHeight: "38px",
@@ -580,8 +582,8 @@ export default function LearnPage() {
                         borderRadius: "8px",
                         border: "1px solid var(--border-color, #cbd5e1)",
                         background: activeMode === mode.id ? "var(--primary-color, #0284c7)" : "transparent",
-                        color: activeMode === mode.id ? "#fff" : (user ? "inherit" : "var(--text-muted, #94a3b8)"),
-                        cursor: user ? "pointer" : "not-allowed",
+                        color: activeMode === mode.id ? "#fff" : (isAssistantAvailable ? "inherit" : "var(--text-muted, #94a3b8)"),
+                        cursor: isAssistantAvailable ? "pointer" : "not-allowed",
                         whiteSpace: "normal",
                         lineHeight: 1.2
                       }}
@@ -594,7 +596,11 @@ export default function LearnPage() {
                 <div className="chat-history" style={{ flex: 1, overflowY: "auto", padding: "1rem 0", display: "flex", flexDirection: "column", gap: "1rem" }}>
                   {chatMessages.length === 0 ? (
                     <div className="assistant-placeholder">
-                      <p>{user ? MODE_DESCRIPTIONS[activeMode || "default"] : "Войдите, чтобы пользоваться AI-ассистентом."}</p>
+                      {isAssistantAvailable ? (
+                        <p>{MODE_DESCRIPTIONS[activeMode || "default"]}</p>
+                      ) : (
+                        <AssistantUnavailableNotice />
+                      )}
                     </div>
                   ) : (
                     chatMessages.map((msg, index) => (
@@ -628,10 +634,10 @@ export default function LearnPage() {
                       value={chatInput}
                       onChange={setChatInput}
                       onSubmit={() => handleChatSubmit()}
-                      placeholder={user ? "Например:\n@step2 почему у меня ошибка?\n@step3 объясни что делает этот код" : "Войдите, чтобы пользоваться чатом."}
-                      disabled={isChatLoading || !user} 
+                      placeholder={isAssistantAvailable ? "Например:\n@step2 почему у меня ошибка?\n@step3 объясни что делает этот код" : "Чат недоступен. Добавьте API ключ и Folder ID."}
+                      disabled={isChatLoading || !isAssistantAvailable} 
                     />
-                    <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !user}>
+                    <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !isAssistantAvailable}>
                       Send
                     </button>
                   </form>

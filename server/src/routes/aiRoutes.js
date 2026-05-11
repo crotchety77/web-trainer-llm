@@ -1,9 +1,38 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import { generateChatResponse, getAiStatus } from "../modules/ai.js";
+import { generateChatResponse } from "../modules/ai.js";
 import { buildPrompt } from "../modules/promptBuilder.js";
+import { pool } from "../db.js";
+import { decryptUserApiKey } from "../modules/userApiKey.js";
 
 const router = Router();
+
+async function resolveUserLlmSettings(userId) {
+  const result = await pool.query(
+    "SELECT llm_api_key_encrypted, llm_folder_id FROM users WHERE id = $1",
+    [userId]
+  );
+
+  const encryptedApiKey = result.rows[0]?.llm_api_key_encrypted;
+  const folderId = result.rows[0]?.llm_folder_id?.trim();
+
+  if (!encryptedApiKey || !folderId) {
+    return { apiKey: null, folderId: null };
+  }
+
+  try {
+    return {
+      apiKey: decryptUserApiKey(encryptedApiKey),
+      folderId
+    };
+  } catch (error) {
+    console.warn("[ai/chat] User LLM API key could not be decrypted:", {
+      userId,
+      reason: error.message
+    });
+    return { apiKey: null, folderId: null };
+  }
+}
 
 router.post("/chat", authMiddleware, async (request, response) => {
   // Ожидаем сырые данные вместо готового массива
@@ -14,11 +43,13 @@ router.post("/chat", authMiddleware, async (request, response) => {
     return response.status(400).json({ message: "User input is required" });
   }
 
-  if (!getAiStatus().enabled) {
-    return response.status(503).json({ message: "AI module is currently unavailable" });
-  }
-
   try {
+    const { apiKey, folderId } = await resolveUserLlmSettings(request.user.id);
+
+    if (!apiKey || !folderId) {
+      return response.status(503).json({ message: "Chat is unavailable. Add an API key and Folder ID in Dashboard." });
+    }
+
     // Сервер контролирует сборку промпта
     const finalMessages = buildPrompt({
       userRole,
@@ -35,7 +66,7 @@ router.post("/chat", authMiddleware, async (request, response) => {
     console.log("===============================================\n");
 
     // Отправляем массив сообщений в Yandex GPT
-    const replyMessage = await generateChatResponse(finalMessages);
+    const replyMessage = await generateChatResponse(finalMessages, { apiKey, folderId });
     return response.json({ message: replyMessage });
   } catch (error) {
     console.error("[ai/chat] Failed:", error.message);

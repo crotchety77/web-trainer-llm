@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import AssistantTextarea from "../components/AssistantTextarea";
+import AssistantUnavailableNotice from "../components/AssistantUnavailableNotice";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import ReactMarkdown from "react-markdown";
@@ -40,6 +41,7 @@ export default function AuthorCourseEditorPage() {
   const params = useParams();
   const isNew = !params.id;
   const { user } = useAuthUser({ required: true });
+  const isAssistantAvailable = Boolean(user?.has_llm_api_key && user?.has_llm_folder_id);
   const toast = useToast();
   const [courseForm, setCourseForm] = useState(emptyCourse);
   const [courseId, setCourseId] = useState(params.id || "");
@@ -148,7 +150,7 @@ export default function AuthorCourseEditorPage() {
 
   async function handleChatSubmit(event) {
     event?.preventDefault();
-    if (!chatInput.trim() || isChatLoading) return;
+    if (!chatInput.trim() || isChatLoading || !isAssistantAvailable) return;
 
     const userText = chatInput.trim();
     setChatInput("");
@@ -269,7 +271,11 @@ export default function AuthorCourseEditorPage() {
           <div className="chat-history">
             {chatMessages.length === 0 ? (
               <div className="author-assistant-placeholder">
-                <p>Ask for a stronger short description, intro rewrite, or better tags for this course page.</p>
+                {isAssistantAvailable ? (
+                  <p>Ask for a stronger short description, intro rewrite, or better tags for this course page.</p>
+                ) : (
+                  <AssistantUnavailableNotice />
+                )}
               </div>
             ) : (
               chatMessages.map((msg, index) => (
@@ -295,10 +301,10 @@ export default function AuthorCourseEditorPage() {
               value={chatInput}
               onChange={setChatInput}
               onSubmit={() => handleChatSubmit()}
-              placeholder={"Например:\nСделай описание курса сильнее\nПодбери 5 тегов по теме курса"}
-              disabled={isChatLoading}
+              placeholder={isAssistantAvailable ? "Например:\nСделай описание курса сильнее\nПодбери 5 тегов по теме курса" : "Чат недоступен. Добавьте API ключ и Folder ID."}
+              disabled={isChatLoading || !isAssistantAvailable}
             />
-            <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim()}>
+            <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !isAssistantAvailable}>
               Send
             </button>
           </form>

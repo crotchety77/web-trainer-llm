@@ -24,7 +24,9 @@ vi.mock("../hooks/useAuthUser", () => ({
     user: {
       id: 7,
       name: "Student",
-      role: "student"
+      role: "student",
+      has_llm_api_key: true,
+      has_llm_folder_id: true
     }
   })
 }));

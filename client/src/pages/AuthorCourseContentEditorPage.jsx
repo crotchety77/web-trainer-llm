@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import CodeEditor from "../components/CodeEditor";
 import AssistantTextarea from "../components/AssistantTextarea";
+import AssistantUnavailableNotice from "../components/AssistantUnavailableNotice";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
@@ -86,6 +87,7 @@ export default function AuthorCourseContentEditorPage() {
   const navigate = useNavigate();
   const params = useParams();
   const { user } = useAuthUser({ required: true });
+  const isAssistantAvailable = Boolean(user?.has_llm_api_key && user?.has_llm_folder_id);
   const toast = useToast();
   const [courseTitle, setCourseTitle] = useState("Course content");
   const [lessons, setLessons] = useState([]);
@@ -573,7 +575,7 @@ export default function AuthorCourseContentEditorPage() {
 
   async function handleChatSubmit(event) {
     event?.preventDefault();
-    if (!chatInput.trim() || isChatLoading) return;
+    if (!chatInput.trim() || isChatLoading || !isAssistantAvailable) return;
 
     const userText = chatInput.trim();
     setChatInput("");
@@ -1227,7 +1229,8 @@ export default function AuthorCourseContentEditorPage() {
                 <button
                   key={mode.id}
                   type="button"
-                  onClick={() => setActiveMode(activeMode === mode.id ? null : mode.id)}
+                  onClick={() => isAssistantAvailable && setActiveMode(activeMode === mode.id ? null : mode.id)}
+                  disabled={!isAssistantAvailable}
                   style={{
                     fontSize: "0.75rem",
                     minHeight: "38px",
@@ -1235,8 +1238,8 @@ export default function AuthorCourseContentEditorPage() {
                     borderRadius: "8px",
                     border: "1px solid var(--border-color, #cbd5e1)",
                     background: activeMode === mode.id ? "var(--primary-color, #0284c7)" : "transparent",
-                    color: activeMode === mode.id ? "#fff" : "inherit",
-                    cursor: "pointer",
+                    color: activeMode === mode.id ? "#fff" : (isAssistantAvailable ? "inherit" : "var(--text-muted, #94a3b8)"),
+                    cursor: isAssistantAvailable ? "pointer" : "not-allowed",
                     whiteSpace: "normal",
                     lineHeight: 1.2
                   }}
@@ -1249,7 +1252,11 @@ export default function AuthorCourseContentEditorPage() {
             <div className="chat-history" style={{ flex: 1, overflowY: "auto", padding: "1rem 0", display: "flex", flexDirection: "column", gap: "1rem" }}>
               {chatMessages.length === 0 ? (
                 <div className="author-assistant-placeholder">
-                  <p>{AUTHOR_MODE_DESCRIPTIONS[activeMode || "default"]}</p>
+                  {isAssistantAvailable ? (
+                    <p>{AUTHOR_MODE_DESCRIPTIONS[activeMode || "default"]}</p>
+                  ) : (
+                    <AssistantUnavailableNotice />
+                  )}
                 </div>
               ) : (
                 chatMessages.map((msg, index) => (
@@ -1273,10 +1280,10 @@ export default function AuthorCourseContentEditorPage() {
                 value={chatInput}
                 onChange={setChatInput}
                 onSubmit={() => handleChatSubmit()}
-                placeholder={"Например:\nУлучши объяснение выбранного блока\nПридумай практическое задание по теме"}
-                disabled={isChatLoading}
+                placeholder={isAssistantAvailable ? "Например:\nУлучши объяснение выбранного блока\nПридумай практическое задание по теме" : "Чат недоступен. Добавьте API ключ и Folder ID."}
+                disabled={isChatLoading || !isAssistantAvailable}
               />
-              <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim()}>
+              <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !isAssistantAvailable}>
                 Send
               </button>
             </form>
