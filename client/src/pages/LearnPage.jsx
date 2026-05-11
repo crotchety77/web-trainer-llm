@@ -62,6 +62,11 @@ export default function LearnPage() {
   const detectedStepRefs = useMemo(() => extractStepRefs(chatInput), [chatInput]);
 
   const activeLessonRef = useRef(null);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
+  }, [chatMessages, isChatLoading]);
 
   useEffect(() => {
     if (activeLessonRef.current && lessons.length > 0) {
@@ -101,9 +106,9 @@ export default function LearnPage() {
           // Восстанавливаем ответы на опросы из БД
           const initialQuizAnswers = {};
           (lessonResponse.lesson.blocks || []).forEach(b => {
-             if (b.last_quiz_answers) {
-                initialQuizAnswers[b.id] = b.last_quiz_answers;
-             }
+            if (b.last_quiz_answers) {
+              initialQuizAnswers[b.id] = b.last_quiz_answers;
+            }
           });
           if (Object.keys(initialQuizAnswers).length > 0) {
             setQuizAnswers((current) => ({ ...current, ...initialQuizAnswers }));
@@ -172,7 +177,7 @@ export default function LearnPage() {
 
   async function handleSubmitQuiz(blockId) {
     const answers = quizAnswers[blockId] || [];
-    
+
     setSubmissionState((current) => ({
       ...current,
       [blockId]: {
@@ -329,12 +334,12 @@ export default function LearnPage() {
       const response = await apiRequest("/api/ai/chat", {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           userInput: userText,
           lessonContext,
           stepsContext,
           chatHistory: chatMessages,
-          mode: activeMode 
+          mode: activeMode
         })
       });
 
@@ -351,45 +356,45 @@ export default function LearnPage() {
 
   return (
     <AppLayout
-      title={lesson?.course_title || "Learning Workspace"}
+      title={lesson?.course_title || "Процесс обучения"}
       user={user}
       onLogout={handleLogout}
     >
       <section className="learn-page">
-        {loading ? <p>Loading lesson...</p> : null}
+        {loading ? <p>Загрузка урока...</p> : null}
 
         {!loading && lesson ? (
           <div className="learn-layout">
             <aside className="learn-sidebar" aria-label="Lesson navigation">
               <div className="learn-sidebar-header">
-                <span className="eyebrow">Course</span>
-                <h2>Lessons</h2>
+                <span className="eyebrow">Курс</span>
+                <h2>Уроки</h2>
               </div>
-            <div className="stack-list" style={{ marginTop: '1rem' }}>
-              {lessons.map((item, index) => {
-                const displayPosition = index + 1;
+              <div className="stack-list" style={{ marginTop: '1rem' }}>
+                {lessons.map((item, index) => {
+                  const displayPosition = index + 1;
 
-                return (
-                  <Link
-                    key={item.id}
-                    ref={item.id === lesson?.id ? activeLessonRef : null}
-                    className={`lesson-link-card ${item.id === lesson?.id ? "active" : ""}`}
-                    to={`/learn/${courseId}/${item.id}`}
-                  >
-                    <span className="lesson-number">{displayPosition}</span>
-                    <strong>
-                      {item.title}
-                    </strong>
-                  </Link>
-                );
-              })}
-            </div>
+                  return (
+                    <Link
+                      key={item.id}
+                      ref={item.id === lesson?.id ? activeLessonRef : null}
+                      className={`lesson-link-card ${item.id === lesson?.id ? "active" : ""}`}
+                      to={`/learn/${courseId}/${item.id}`}
+                    >
+                      <span className="lesson-number">{displayPosition}</span>
+                      <strong>
+                        {item.title}
+                      </strong>
+                    </Link>
+                  );
+                })}
+              </div>
             </aside>
 
             <div className="learn-workspace">
               <main className="lesson-content">
                 <div className="lesson-header">
-                  <span className="eyebrow">Lesson {lesson.position}</span>
+                  <span className="eyebrow">Урок {lesson.position}</span>
                   <h2>
                     {lesson.position}. {lesson.title}
                   </h2>
@@ -405,7 +410,7 @@ export default function LearnPage() {
                       <article key={block.id} className={`learning-block ${isCodeBlock ? "with-editor" : ""} ${isCompleted ? "completed-block" : ""}`} style={isCompleted ? { borderLeft: '4px solid #10b981', background: 'rgba(16, 185, 129, 0.05)' } : {}}>
                         <div className="block-meta">
                           <span className="tag-chip">{block.type}</span>
-                          <span>Step {index + 1}</span>
+                          <span>Шаг {index + 1}</span>
                           {isCompleted && (
                             <span style={{ color: '#10b981', marginLeft: 'auto', fontWeight: 'bold' }}>
                               ✓ Выполнено
@@ -417,7 +422,7 @@ export default function LearnPage() {
                           <p>{block.content}</p>
                           {block.attachment_url ? (
                             <a href={block.attachment_url} target="_blank" rel="noreferrer">
-                              Attachment
+                              Прикрепленный файл
                             </a>
                           ) : null}
                         </div>
@@ -430,9 +435,9 @@ export default function LearnPage() {
                                 <p className="result-text-error">{blockState.error}</p>
                               </div>
                             )}
-                            <button 
-                              type="button" 
-                              className="secondary-button" 
+                            <button
+                              type="button"
+                              className="secondary-button"
                               disabled={blockState.submitting}
                               onClick={() => handleCompleteBlock(block.id)}
                             >
@@ -450,7 +455,7 @@ export default function LearnPage() {
                                 const isChecked = (quizAnswers[block.id] || []).includes(idx);
                                 return (
                                   <label key={idx} style={{ display: 'block', marginBottom: '0.75rem', cursor: isCompleted ? 'default' : 'pointer', padding: '0.75rem', borderRadius: '6px', border: `1px solid ${isChecked ? 'var(--primary-color, #0284c7)' : '#e2e8f0'}`, background: isChecked ? 'var(--primary-light, #e0f2fe)' : '#f8fafc' }}>
-                                    <input 
+                                    <input
                                       type={isMultiple ? "checkbox" : "radio"}
                                       name={`quiz-${block.id}`}
                                       checked={isChecked}
@@ -485,21 +490,21 @@ export default function LearnPage() {
                           <div className="code-submission">
                             <div className="editor-shell">
                               <div className="editor-toolbar">
-                                <label htmlFor={`solution-${block.id}`}>Solution code</label>
+                                <label htmlFor={`solution-${block.id}`}>Код решения</label>
                                 <span>{block.quiz_data?.language || "javascript"}</span>
                               </div>
-                                <CodeEditor
-                                  ariaLabel={`Solution code for ${block.title}`}
-                                  value={solutions[block.id] !== undefined ? solutions[block.id] : (block.quiz_data?.placeholder_code || "")}
-                                  onChange={(val) => handleSolutionChange(block.id, val)}
-                                  language={block.quiz_data?.language || "javascript"}
-                                  height={300}
-                                />
-                                {block.quiz_data?.function_name && (
-                                  <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "0.5rem", padding: "0.5rem", background: "#f8fafc", borderRadius: "4px" }}>
-                                    💡 <strong>Подсказка:</strong> Система автоматически прочитает ввод и вызовет вашу функцию <code>{block.quiz_data.function_name}</code> с нужными аргументами.
-                                  </div>
-                                )}
+                              <CodeEditor
+                                ariaLabel={`Solution code for ${block.title}`}
+                                value={solutions[block.id] !== undefined ? solutions[block.id] : (block.quiz_data?.placeholder_code || "")}
+                                onChange={(val) => handleSolutionChange(block.id, val)}
+                                language={block.quiz_data?.language || "javascript"}
+                                height={300}
+                              />
+                              {block.quiz_data?.function_name && (
+                                <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "0.5rem", padding: "0.5rem", background: "#f8fafc", borderRadius: "4px" }}>
+                                  💡 <strong>Подсказка:</strong> Система автоматически прочитает ввод и вызовет вашу функцию <code>{block.quiz_data.function_name}</code> с нужными аргументами.
+                                </div>
+                              )}
                             </div>
 
                             <div className="submission-panel" aria-live="polite">
@@ -509,17 +514,17 @@ export default function LearnPage() {
                                 disabled={blockState.submitting || !user}
                                 onClick={() => handleSubmitSolution(block.id)}
                               >
-                                {blockState.submitting ? "Submitting..." : user ? "Submit solution" : "Log in to submit"}
+                                {blockState.submitting ? "Отправка..." : user ? "Проверить решение" : "Войдите для проверки"}
                               </button>
                               {blockState.error ? (
                                 <div className="check-result error-result">
-                                  <span>Check failed</span>
+                                  <span>Ошибка проверки</span>
                                   <p className="result-text-error">{blockState.error}</p>
                                 </div>
                               ) : null}
                               {blockState.submission ? (
                                 <div className={`check-result ${blockState.submission.status === "passed" || blockState.submission.status === "accepted" ? "success-result" : "error-result"}`}>
-                                  <span>{blockState.submission.status || "Result"}</span>
+                                  <span>{blockState.submission.status || "Результат"}</span>
                                   <p className={blockState.submission.status === "passed" || blockState.submission.status === "accepted" ? "result-text-success" : "result-text-error"}>{blockState.submission.result_message}</p>
                                   {blockState.submission.tests_result ? (
                                     <div className="test-stats" style={{ marginTop: "1rem" }}>
@@ -528,7 +533,7 @@ export default function LearnPage() {
                                         <span style={{ color: "#10b981" }}>Успешно: {blockState.submission.tests_result.passed}</span>
                                         <span style={{ color: "#ef4444" }}>Упало: {blockState.submission.tests_result.failed}</span>
                                       </div>
-                                      
+
                                       {(blockState.submission.tests_result.details || []).map((detail, idx) => (
                                         <div key={idx} style={{ marginBottom: "0.5rem", padding: "0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", background: detail.passed ? "#f0fdf4" : "#fef2f2" }}>
                                           <div style={{ fontWeight: "bold", marginBottom: "0.5rem", color: detail.passed ? "#15803d" : "#b91c1c" }}>
@@ -551,7 +556,7 @@ export default function LearnPage() {
                                 </div>
                               ) : null}
                               {!blockState.error && !blockState.submission && !blockState.submitting ? (
-                                <p className="helper-text">Run your answer when the solution is ready.</p>
+                                <p className="helper-text">Запустите проверку, когда решение будет готово.</p>
                               ) : null}
                             </div>
                           </div>
@@ -564,10 +569,10 @@ export default function LearnPage() {
 
               <aside className="assistant-panel" aria-label="Chat assistant" style={{ display: "flex", flexDirection: "column" }}>
                 <div>
-                  <span className="eyebrow">Assistant</span>
-                  <h2>Chat</h2>
+                  <span className="eyebrow">Ассистент</span>
+                  <h2>Чат</h2>
                 </div>
-                
+
                 <div className="chat-quick-actions">
                   {STUDENT_MODES.map(mode => (
                     <button
@@ -604,19 +609,22 @@ export default function LearnPage() {
                     </div>
                   ) : (
                     chatMessages.map((msg, index) => (
-                      <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%" }}>
-                      <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{msg.role === "user" ? "You" : "AI Assistant"}</strong>
-                      {msg.role === "assistant" ? (
-                        <div className="markdown-content" style={{ paddingTop: "0.25rem", fontSize: "0.95rem" }}>
-                          <ReactMarkdown>{msg.text}</ReactMarkdown>
-                        </div>
-                      ) : (
-                        <p style={{ margin: "0.25rem 0 0 0", whiteSpace: "pre-wrap", fontSize: "0.95rem" }}>{msg.text}</p>
-                      )}
+                      <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%", marginRight: msg.role === "user" ? "0.5rem" : "0" }}>
+                        {msg.role === "user" && (
+                          <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{user?.name || "You"}</strong>
+                        )}
+                        {msg.role === "assistant" ? (
+                          <div className="markdown-content" style={{ paddingTop: "0.25rem", fontSize: "0.95rem" }}>
+                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p style={{ margin: "0.25rem 0 0 0", whiteSpace: "pre-wrap", fontSize: "0.95rem" }}>{msg.text}</p>
+                        )}
                       </div>
                     ))
                   )}
-                  {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Typing...</div>}
+                  {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Печатает...</div>}
+                  <div ref={chatEndRef} />
                 </div>
 
                 <div>
@@ -635,10 +643,10 @@ export default function LearnPage() {
                       onChange={setChatInput}
                       onSubmit={() => handleChatSubmit()}
                       placeholder={isAssistantAvailable ? "Например:\n@step2 почему у меня ошибка?\n@step3 объясни что делает этот код" : "Чат недоступен. Добавьте API ключ и Folder ID."}
-                      disabled={isChatLoading || !isAssistantAvailable} 
+                      disabled={isChatLoading || !isAssistantAvailable}
                     />
                     <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !isAssistantAvailable}>
-                      Send
+                      Отправить
                     </button>
                   </form>
                 </div>

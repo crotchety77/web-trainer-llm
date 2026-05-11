@@ -62,11 +62,22 @@ router.post("/chat", authMiddleware, async (request, response) => {
 
     // Логируем в терминал IDE всё, что уходит к нейросети
     console.log("\n=== [ai/chat] ОТПРАВКА ДАННЫХ В YANDEX GPT ===");
-    console.log(JSON.stringify(finalMessages, null, 2));
+    console.log(JSON.stringify({
+      interaction: "NEW",
+      userId: request.user.id,
+      role: userRole,
+      mode: mode || "default",
+      userInput,
+      prompt: finalMessages
+    }, null, 2));
     console.log("===============================================\n");
 
     // Отправляем массив сообщений в Yandex GPT
     const replyMessage = await generateChatResponse(finalMessages, { apiKey, folderId });
+    console.log("--- AI RESPONSE ---");
+    console.log(JSON.stringify(replyMessage, null, 2));
+    console.log("--- END INTERACTION ---\n");
+
     return response.json({ message: replyMessage });
   } catch (error) {
     console.error("[ai/chat] Failed:", error.message);

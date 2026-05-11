@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import AssistantTextarea from "../components/AssistantTextarea";
@@ -50,6 +50,11 @@ export default function AuthorCourseEditorPage() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
+  }, [chatMessages, isChatLoading]);
 
   useEffect(() => {
     if (isNew || !params.id) {
@@ -182,8 +187,8 @@ export default function AuthorCourseEditorPage() {
 
   return (
     <AppLayout
-      title={isNew ? "Create Course" : "Edit Course"}
-      subtitle="Edit the public course page that students will see before starting lessons."
+      title={isNew ? "Создание курса" : "Редактирование курса"}
+      subtitle="Редактируйте публичную страницу курса, которую студенты увидят перед началом обучения."
       user={user}
       onLogout={handleLogout}
     >
@@ -191,19 +196,19 @@ export default function AuthorCourseEditorPage() {
         <section className="panel">
           <div className="action-row">
             <Link className="secondary-link-button" to="/author/dashboard">
-              Back to dashboard
+              Назад в панель
             </Link>
             {!isNew && courseId ? (
               <Link className="primary-link-button" to={`/author/courses/${courseId}/content`}>
-                Edit course content
+                Редактировать контент
               </Link>
             ) : null}
           </div>
 
-          {loading ? <p>Loading course editor...</p> : null}
+          {loading ? <p>Загрузка редактора курса...</p> : null}
           <form className="form" onSubmit={handleCourseSubmit}>
             <label>
-              <span>Cover image URL</span>
+              <span>URL обложки курса</span>
               <input
                 name="cover_image_url"
                 value={courseForm.cover_image_url}
@@ -212,12 +217,12 @@ export default function AuthorCourseEditorPage() {
             </label>
 
             <label>
-              <span>Title</span>
+              <span>Название</span>
               <input name="title" value={courseForm.title} onChange={updateCourseField} required />
             </label>
 
             <label>
-              <span>Short description</span>
+              <span>Краткое описание</span>
               <textarea
                 name="short_description"
                 value={courseForm.short_description}
@@ -227,7 +232,7 @@ export default function AuthorCourseEditorPage() {
             </label>
 
             <label>
-              <span>Intro content</span>
+              <span>Вводный текст</span>
               <textarea
                 name="intro_content"
                 value={courseForm.intro_content}
@@ -237,7 +242,7 @@ export default function AuthorCourseEditorPage() {
             </label>
 
             <label>
-              <span>Tags</span>
+              <span>Теги</span>
               <input
                 name="tags"
                 value={courseForm.tags}
@@ -253,34 +258,36 @@ export default function AuthorCourseEditorPage() {
                 checked={courseForm.is_published}
                 onChange={updateCourseField}
               />
-              <span>Published</span>
+              <span>Опубликован</span>
             </label>
 
             <button type="submit" disabled={saving}>
-              {saving ? "Saving..." : isNew ? "Create course" : "Save course"}
+              {saving ? "Сохранение..." : isNew ? "Создать курс" : "Сохранить изменения"}
             </button>
           </form>
         </section>
 
         <aside className="author-assistant-panel course-page-assistant" aria-label="Course page assistant">
           <div className="author-panel-header">
-            <span className="eyebrow">Assistant</span>
-            <h2>Course page</h2>
+            <span className="eyebrow">Ассистент</span>
+            <h2>Страница курса</h2>
           </div>
 
           <div className="chat-history">
             {chatMessages.length === 0 ? (
               <div className="author-assistant-placeholder">
                 {isAssistantAvailable ? (
-                  <p>Ask for a stronger short description, intro rewrite, or better tags for this course page.</p>
+                  <p>Попросите ассистента улучшить описание, переписать вводный текст или подобрать подходящие теги для этого курса.</p>
                 ) : (
                   <AssistantUnavailableNotice />
                 )}
               </div>
             ) : (
               chatMessages.map((msg, index) => (
-                <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%" }}>
-                  <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{msg.role === "user" ? "You" : "AI Assistant"}</strong>
+                <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%", marginRight: msg.role === "user" ? "0.5rem" : "0" }}>
+                  {msg.role === "user" && (
+                  <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{user?.name || "You"}</strong>
+                )}
                   {msg.role === "assistant" ? (
                     <div className="markdown-content" style={{ paddingTop: "0.25rem", fontSize: "0.95rem" }}>
                       <ReactMarkdown>{msg.text}</ReactMarkdown>
@@ -292,8 +299,9 @@ export default function AuthorCourseEditorPage() {
               ))
             )}
             {isChatLoading ? (
-              <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Typing...</div>
+              <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Печатает...</div>
             ) : null}
+            <div ref={chatEndRef} />
           </div>
 
           <form className="assistant-input-row" onSubmit={handleChatSubmit}>
@@ -301,11 +309,11 @@ export default function AuthorCourseEditorPage() {
               value={chatInput}
               onChange={setChatInput}
               onSubmit={() => handleChatSubmit()}
-              placeholder={isAssistantAvailable ? "Например:\nСделай описание курса сильнее\nПодбери 5 тегов по теме курса" : "Чат недоступен. Добавьте API ключ и Folder ID."}
+              placeholder={isAssistantAvailable ? "Сделай описание курса сильнее\nПодбери 5 тегов по теме курса" : "Чат недоступен. Добавьте API ключ и Folder ID."}
               disabled={isChatLoading || !isAssistantAvailable}
             />
             <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !isAssistantAvailable}>
-              Send
+              Отправить
             </button>
           </form>
         </aside>

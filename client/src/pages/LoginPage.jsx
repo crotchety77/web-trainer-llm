@@ -40,12 +40,12 @@ export default function LoginPage() {
   return (
     <main className="auth-layout">
       <section className="card">
-        <h1>Login</h1>
-        <p className="muted">Sign in to continue to your dashboard.</p>
+        <h1>Вход</h1>
+        <p className="muted">Войдите, чтобы продолжить работу.</p>
 
         <form className="form" onSubmit={handleSubmit}>
           <label>
-            <span>Email</span>
+            <span>Электронная почта</span>
             <input
               type="email"
               name="email"
@@ -56,7 +56,7 @@ export default function LoginPage() {
           </label>
 
           <label>
-            <span>Password</span>
+            <span>Пароль</span>
             <input
               type="password"
               name="password"
@@ -66,12 +66,12 @@ export default function LoginPage() {
             />
           </label>
           <button type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Login"}
+            {loading ? "Вход..." : "Войти"}
           </button>
         </form>
 
         <p className="helper-text">
-          No account yet? <Link to="/register">Create one</Link>
+          Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
         </p>
       </section>
     </main>

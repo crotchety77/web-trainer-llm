@@ -103,7 +103,7 @@ export default function CoursesPage() {
 
   return (
     <AppLayout
-      title="Published Courses"
+      title="Доступные курсы"
       user={user}
       onLogout={handleLogout}
     >
@@ -154,9 +154,9 @@ export default function CoursesPage() {
           </button>
         </form>
 
-        {loading ? <p>Loading courses...</p> : null}
+        {loading ? <p>Загрузка курсов...</p> : null}
 
-        {!loading && !courses.length ? <p>No published courses match this filter.</p> : null}
+        {!loading && !courses.length ? <p>По вашему запросу ничего не найдено.</p> : null}
 
         <div className="course-list">
           {courses.map((course) => (
@@ -165,7 +165,7 @@ export default function CoursesPage() {
                 {course.cover_image_url ? (
                   <img className="cover-image" src={course.cover_image_url} alt={course.title} />
                 ) : (
-                  <div className="cover-placeholder">No cover</div>
+                  <div className="cover-placeholder">Нет обложки</div>
                 )}
 
                 <Link className="primary-link-button" to={`/courses/${course.id}`}>
@@ -186,8 +186,8 @@ export default function CoursesPage() {
                 <p>{course.short_description}</p>
 
                 <div className="meta-row">
-                  <span>Author: {course.author_name}</span>
-                  <span>Lessons: {course.lessons_count}</span>
+                  <span>Автор: {course.author_name}</span>
+                  <span>Уроков: {course.lessons_count}</span>
                 </div>
               </div>
             </article>

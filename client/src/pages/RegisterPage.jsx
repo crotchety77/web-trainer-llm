@@ -42,12 +42,12 @@ export default function RegisterPage() {
   return (
     <main className="auth-layout">
       <section className="card">
-        <h1>Register</h1>
-        <p className="muted">Create a student or author account.</p>
+        <h1>Регистрация</h1>
+        <p className="muted">Создайте аккаунт студента или автора.</p>
 
         <form className="form" onSubmit={handleSubmit}>
           <label>
-            <span>Name</span>
+            <span>Имя</span>
             <input
               type="text"
               name="name"
@@ -58,7 +58,7 @@ export default function RegisterPage() {
           </label>
 
           <label>
-            <span>Email</span>
+            <span>Электронная почта</span>
             <input
               type="email"
               name="email"
@@ -69,7 +69,7 @@ export default function RegisterPage() {
           </label>
 
           <label>
-            <span>Password</span>
+            <span>Пароль</span>
             <input
               type="password"
               name="password"
@@ -81,19 +81,19 @@ export default function RegisterPage() {
           </label>
 
           <label>
-            <span>Role</span>
+            <span>Роль</span>
             <select name="role" value={formData.role} onChange={handleChange}>
-              <option value="student">Student</option>
-              <option value="author">Author</option>
+              <option value="student">Студент</option>
+              <option value="author">Автор</option>
             </select>
           </label>
           <button type="submit" disabled={loading}>
-            {loading ? "Creating..." : "Register"}
+            {loading ? "Создание..." : "Зарегистрироваться"}
           </button>
         </form>
 
         <p className="helper-text">
-          Already registered? <Link to="/login">Go to login</Link>
+          Уже зарегистрированы? <Link to="/login">Войти</Link>
         </p>
       </section>
     </main>

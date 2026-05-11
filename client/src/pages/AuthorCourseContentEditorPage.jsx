@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import CodeEditor from "../components/CodeEditor";
 import AssistantTextarea from "../components/AssistantTextarea";
 import AssistantUnavailableNotice from "../components/AssistantUnavailableNotice";
@@ -89,7 +89,7 @@ export default function AuthorCourseContentEditorPage() {
   const { user } = useAuthUser({ required: true });
   const isAssistantAvailable = Boolean(user?.has_llm_api_key && user?.has_llm_folder_id);
   const toast = useToast();
-  const [courseTitle, setCourseTitle] = useState("Course content");
+  const [courseTitle, setCourseTitle] = useState("Контент курса");
   const [lessons, setLessons] = useState([]);
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [lessonDetail, setLessonDetail] = useState(null);
@@ -108,6 +108,7 @@ export default function AuthorCourseContentEditorPage() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
   const [activeMode, setActiveMode] = useState(null);
   const [authorTestCode, setAuthorTestCode] = useState({});
   const [authorTestResults, setAuthorTestResults] = useState({});
@@ -118,7 +119,9 @@ export default function AuthorCourseContentEditorPage() {
     return lessons.find((lesson) => lesson.id === selectedLessonId) || null;
   }, [lessons, selectedLessonId]);
 
-
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
+  }, [chatMessages, isChatLoading]);
 
   const selectedBlock = useMemo(() => {
     return (lessonDetail?.blocks || []).find((block) => block.id === activeBlockId) || null;
@@ -141,7 +144,7 @@ export default function AuthorCourseContentEditorPage() {
         ]);
 
         if (!cancelled) {
-          setCourseTitle(courseResponse.course?.title || "Course content");
+          setCourseTitle(courseResponse.course?.title || "Контент курса");
           setLessons(lessonsResponse.lessons || []);
 
           if (lessonsResponse.lessons?.length) {
@@ -587,6 +590,7 @@ export default function AuthorCourseContentEditorPage() {
       const editorContext = lessonDetail
         ? `Автор редактирует урок: "${lessonDetail.title}".\nТекущие блоки урока:\n` + (lessonDetail.blocks || []).map(b => `[${b.type}] ${b.title}: ${b.content}`).join('\n')
         : "Автор пока не выбрал урок.";
+      console.log("[ChatRequest]", { userInput: userText, mode: activeMode });
 
       const response = await apiRequest("/api/ai/chat", {
         method: "POST",
@@ -618,21 +622,21 @@ export default function AuthorCourseContentEditorPage() {
     >
       <div className="author-content-actions">
         <Link className="secondary-link-button" to={`/author/courses/${params.id}/edit`}>
-          Edit course page
+          На страницу курса
         </Link>
         <Link className="secondary-link-button" to="/author/dashboard">
-          Back to dashboard
+          Назад в панель
         </Link>
       </div>
 
-      {loading ? <p>Loading course content...</p> : null}
+      {loading ? <p>Загрузка контента курса...</p> : null}
 
       {!loading ? (
         <section className="author-editor-layout">
           <aside className="author-lessons-sidebar" aria-label="Course lessons">
             <div className="author-panel-header">
-              <span className="eyebrow">Course map</span>
-              <h2>Lessons</h2>
+              <span className="eyebrow">Карта курса</span>
+              <h2>Уроки</h2>
             </div>
 
             <div className="stack-list" style={{ marginTop: '1rem' }}>
@@ -691,9 +695,9 @@ export default function AuthorCourseContentEditorPage() {
             </div>
 
             <form className="author-create-lesson form compact-form" onSubmit={handleLessonCreate}>
-              <h3>Add lesson</h3>
+              <h3>Добавить урок</h3>
               <label>
-                <span>Title</span>
+                <span>Название</span>
                 <input
                   value={createLessonForm.title}
                   onChange={(event) =>
@@ -702,7 +706,7 @@ export default function AuthorCourseContentEditorPage() {
                   required
                 />
               </label>
-              <button type="submit">Add lesson</button>
+              <button type="submit">Добавить урок</button>
             </form>
           </aside>
 
@@ -711,12 +715,12 @@ export default function AuthorCourseContentEditorPage() {
               <>
                 <form className="author-lesson-bar" onSubmit={handleLessonUpdate}>
                   <div className="author-panel-header">
-                    <span className="eyebrow">Selected lesson</span>
+                    <span className="eyebrow">Выбранный урок</span>
                     <h2>{selectedLesson.title}</h2>
                   </div>
                   <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}>
                     <label style={{ flex: 1, marginBottom: 0 }}>
-                      <span style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.85rem", fontWeight: "600" }}>Title</span>
+                      <span style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.85rem", fontWeight: "600" }}>Название</span>
                       <input
                         value={lessonForm.title}
                         onChange={(event) =>
@@ -726,7 +730,7 @@ export default function AuthorCourseContentEditorPage() {
                         style={{ width: "100%" }}
                       />
                     </label>
-                    <button type="submit" style={{ height: "fit-content" }}>Save lesson</button>
+                    <button type="submit" style={{ height: "fit-content" }}>Сохранить урок</button>
                     <button
                       type="button"
                       className="secondary-button"
@@ -734,7 +738,7 @@ export default function AuthorCourseContentEditorPage() {
                       style={{ height: "fit-content", backgroundColor: "#ec4899", color: "#fff", borderColor: "#ec4899" }}
                       title="Удалить урок со всеми блоками"
                     >
-                      Delete
+                      Удалить
                     </button>
                   </div>
                 </form>
@@ -753,18 +757,18 @@ export default function AuthorCourseContentEditorPage() {
                     ))}
                   </div>
                   <label>
-                    <span>New block title</span>
+                    <span>Название нового блока</span>
                     <input
                       value={newBlockForm.title}
                       onChange={(event) =>
                         setNewBlockForm((current) => ({ ...current, title: event.target.value }))
                       }
-                      placeholder="Short task name"
+                      placeholder="Название задания"
                       required
                     />
                   </label>
                   <label>
-                    <span>Attachment URL</span>
+                    <span>URL вложения</span>
                     <input
                       value={newBlockForm.attachment_url}
                       onChange={(event) =>
@@ -775,7 +779,7 @@ export default function AuthorCourseContentEditorPage() {
                       }
                     />
                   </label>
-                  <button type="submit">Add block</button>
+                  <button type="submit">Добавить блок</button>
                 </form>
 
                 <div className="author-block-area">
@@ -828,7 +832,7 @@ export default function AuthorCourseContentEditorPage() {
                         </button>
                       ))
                     ) : (
-                      <p className="helper-text">No blocks yet. Add a lecture, practice, or test block above.</p>
+                      <p className="helper-text">Блоков пока нет. Добавьте лекцию, практику или тест выше.</p>
                     )}
                   </div>
 
@@ -842,7 +846,7 @@ export default function AuthorCourseContentEditorPage() {
                     >
                       <div className="author-block-editor-header">
                         <div>
-                          <span className="eyebrow">Editing block #{selectedBlock.id}</span>
+                          <span className="eyebrow">Редактирование блока #{selectedBlock.id}</span>
                           <h3>{blockDrafts[selectedBlock.id]?.title || selectedBlock.title}</h3>
                         </div>
                       </div>
@@ -862,14 +866,14 @@ export default function AuthorCourseContentEditorPage() {
 
                       <div className="author-field-grid">
                         <label>
-                          <span>Title</span>
+                          <span>Название</span>
                           <input
                             value={blockDrafts[selectedBlock.id]?.title || ""}
                             onChange={(event) => updateBlockDraft(selectedBlock.id, "title", event.target.value)}
                           />
                         </label>
                         <label>
-                          <span>Attachment URL</span>
+                          <span>URL вложения</span>
                           <input
                             value={blockDrafts[selectedBlock.id]?.attachment_url || ""}
                             onChange={(event) =>
@@ -880,7 +884,7 @@ export default function AuthorCourseContentEditorPage() {
                       </div>
 
                       <label className="author-content-field">
-                        <span>Content</span>
+                        <span>Контент</span>
                         <textarea
                           rows="14"
                           value={blockDrafts[selectedBlock.id]?.content || ""}
@@ -891,7 +895,7 @@ export default function AuthorCourseContentEditorPage() {
                       {blockDrafts[selectedBlock.id]?.type === "test" && (
                         <div className="author-quiz-editor" style={{ marginTop: "1rem", padding: "1.5rem", border: "1px solid var(--border-color, #cbd5e1)", borderRadius: "8px", background: "#fff" }}>
                           <div className="author-panel-header" style={{ marginBottom: "1rem" }}>
-                            <span className="eyebrow">Interactive Task</span>
+                            <span className="eyebrow">Интерактивное задание</span>
                             <h4>Опрос / Тестирование</h4>
                           </div>
 
@@ -1019,7 +1023,7 @@ export default function AuthorCourseContentEditorPage() {
                       {blockDrafts[selectedBlock.id]?.type === "practice" && (
                         <div className="author-practice-editor" style={{ marginTop: "1rem", padding: "1.5rem", border: "1px solid var(--border-color, #cbd5e1)", borderRadius: "8px", background: "#fff" }}>
                           <div className="author-panel-header" style={{ marginBottom: "1rem" }}>
-                            <span className="eyebrow">Interactive Task</span>
+                            <span className="eyebrow">Интерактивное задание</span>
                             <h4>Настройки задания с кодом</h4>
                           </div>
 
@@ -1158,7 +1162,7 @@ export default function AuthorCourseContentEditorPage() {
                             {authorTestResults[selectedBlock.id] && (
                               <div style={{ marginTop: "1rem" }}>
                                 <div className={`check-result ${authorTestResults[selectedBlock.id].status === "passed" || authorTestResults[selectedBlock.id].status === "accepted" ? "success-result" : "error-result"}`} style={{ padding: "1rem", borderRadius: "6px", border: "1px solid", borderColor: authorTestResults[selectedBlock.id].status === "passed" || authorTestResults[selectedBlock.id].status === "accepted" ? "#86efac" : "#fca5a5", background: authorTestResults[selectedBlock.id].status === "passed" || authorTestResults[selectedBlock.id].status === "accepted" ? "#f0fdf4" : "#fef2f2" }}>
-                                  <span style={{ fontWeight: "bold", color: authorTestResults[selectedBlock.id].status === "passed" || authorTestResults[selectedBlock.id].status === "accepted" ? "#166534" : "#991b1b" }}>{authorTestResults[selectedBlock.id].status || "Result"}</span>
+                                  <span style={{ fontWeight: "bold", color: authorTestResults[selectedBlock.id].status === "passed" || authorTestResults[selectedBlock.id].status === "accepted" ? "#166534" : "#991b1b" }}>{authorTestResults[selectedBlock.id].status || "Результат"}</span>
                                   <p style={{ margin: "0.5rem 0", color: authorTestResults[selectedBlock.id].status === "passed" || authorTestResults[selectedBlock.id].status === "accepted" ? "#15803d" : "#b91c1c" }}>{authorTestResults[selectedBlock.id].result_message}</p>
                                   {authorTestResults[selectedBlock.id].tests_result ? (
                                     <div className="test-stats" style={{ marginTop: "1rem" }}>
@@ -1195,7 +1199,7 @@ export default function AuthorCourseContentEditorPage() {
                         <button
                           type="submit"
                         >
-                          Save changes
+                          Сохранить изменения
                         </button>
                         <button
                           type="button"
@@ -1204,7 +1208,7 @@ export default function AuthorCourseContentEditorPage() {
                           style={{ backgroundColor: "#ec4899", color: "#fff", borderColor: "#ec4899" }}
                           title="Удалить блок"
                         >
-                          Delete
+                          Удалить
                         </button>
                       </div>
                     </form>
@@ -1213,15 +1217,15 @@ export default function AuthorCourseContentEditorPage() {
               </>
             ) : (
               <div className="author-empty-state">
-                <p>Create a lesson to start building course content.</p>
+                <p>Создайте урок, чтобы начать наполнение курса контентом.</p>
               </div>
             )}
           </main>
 
           <aside className="author-assistant-panel" aria-label="Course assistant" style={{ display: "flex", flexDirection: "column" }}>
             <div className="author-panel-header">
-              <span className="eyebrow">Assistant</span>
-              <h2>Course chat</h2>
+              <span className="eyebrow">Ассистент</span>
+              <h2>Чат по курсу</h2>
             </div>
 
             <div className="chat-quick-actions">
@@ -1260,8 +1264,10 @@ export default function AuthorCourseContentEditorPage() {
                 </div>
               ) : (
                 chatMessages.map((msg, index) => (
-                  <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%" }}>
-                    <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{msg.role === "user" ? "You" : "AI Assistant"}</strong>
+                  <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%", marginRight: msg.role === "user" ? "0.5rem" : "0" }}>
+                    {msg.role === "user" && (
+                      <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{user?.name || "You"}</strong>
+                    )}
                     {msg.role === "assistant" ? (
                       <div className="markdown-content" style={{ paddingTop: "0.25rem", fontSize: "0.95rem" }}>
                         <ReactMarkdown>{msg.text}</ReactMarkdown>
@@ -1272,7 +1278,8 @@ export default function AuthorCourseContentEditorPage() {
                   </div>
                 ))
               )}
-              {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Typing...</div>}
+              {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Печатает...</div>}
+              <div ref={chatEndRef} />
             </div>
 
             <form className="assistant-input-row" onSubmit={handleChatSubmit}>
@@ -1284,7 +1291,7 @@ export default function AuthorCourseContentEditorPage() {
                 disabled={isChatLoading || !isAssistantAvailable}
               />
               <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !isAssistantAvailable}>
-                Send
+                Отправить
               </button>
             </form>
           </aside>

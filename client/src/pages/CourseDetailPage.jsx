@@ -65,12 +65,12 @@ export default function CourseDetailPage() {
 
   return (
     <AppLayout
-      title={course?.title || "Course"}
+      title={course?.title || "Курс"}
       user={user}
       onLogout={handleLogout}
     >
       <section className="course-detail-section">
-        {loading ? <p>Loading course...</p> : null}
+        {loading ? <p>Загрузка курса...</p> : null}
 
         {course ? (
           <div className="detail-grid">
@@ -115,7 +115,7 @@ export default function CourseDetailPage() {
             </div>
 
             <aside className="sidebar-panel">
-              <h3>Lessons</h3>
+              <h3>Уроки</h3>
               <div className="stack-list">
                 {(course.lessons || []).map((lesson, index) => {
                   const displayPosition = index + 1;
@@ -138,7 +138,7 @@ export default function CourseDetailPage() {
                       key={lesson.id}
                       className="lesson-link-card"
                       style={{ opacity: 0.7, cursor: "not-allowed" }}
-                      title={user ? "Сначала запишитесь на курс" : "Log in to access lesson"}
+                      title={user ? "Сначала запишитесь на курс" : "Войдите, чтобы получить доступ к уроку"}
                     >
                       <span className="lesson-number">{displayPosition}</span>
                       <strong>
@@ -150,7 +150,7 @@ export default function CourseDetailPage() {
               </div>
               {!user && (
                 <p className="helper-text" style={{ marginTop: "1rem" }}>
-                  <Link to="/login">Log in</Link> or <Link to="/register">register</Link> to start learning.
+                  <Link to="/login">Войдите</Link> или <Link to="/register">зарегистрируйтесь</Link>, чтобы начать обучение.
                 </p>
               )}
             </aside>

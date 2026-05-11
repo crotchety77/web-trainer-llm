@@ -17,15 +17,15 @@ export default function AppLayout({ title, subtitle, user, onLogout, children })
         </Link>
 
         <nav className="topnav">
-          <NavLink to="/courses">Courses</NavLink>
-          {user?.role === "author" ? <NavLink to="/author/dashboard">Author</NavLink> : null}
-          {user ? <NavLink to="/dashboard">Dashboard</NavLink> : null}
+          <NavLink to="/courses">Все курсы</NavLink>
+          {user?.role === "author" ? <NavLink to="/author/dashboard">Панель автора</NavLink> : null}
+          {user ? <NavLink to="/dashboard">Профиль</NavLink> : null}
           {user ? (
             <button type="button" className="link-button" onClick={handleLogout}>
-              Logout
+              Выйти
             </button>
           ) : (
-            <NavLink to="/login">Login</NavLink>
+            <NavLink to="/login">Войти</NavLink>
           )}
         </nav>
       </header>

@@ -26,6 +26,8 @@ export default function DashboardPage() {
   const [hasUserFolderId, setHasUserFolderId] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [folderIdInput, setFolderIdInput] = useState("");
+  const [isApiKeyEditing, setIsApiKeyEditing] = useState(false);
+  const [isFolderIdEditing, setIsFolderIdEditing] = useState(false);
   const [apiKeySaving, setApiKeySaving] = useState(false);
   const [folderIdSaving, setFolderIdSaving] = useState(false);
 
@@ -55,7 +57,7 @@ export default function DashboardPage() {
     const trimmedApiKey = apiKeyInput.trim();
 
     if (!isValidUserLlmApiKey(trimmedApiKey)) {
-      toast.error("API key must be 20-300 characters and must not contain spaces.");
+      toast.error("API ключ должен быть длиной от 20 до 300 символов и не должен содержать пробелы.");
       return;
     }
 
@@ -70,7 +72,8 @@ export default function DashboardPage() {
 
       setHasUserApiKey(Boolean(data.has_llm_api_key));
       setApiKeyInput("");
-      toast.success("API key saved.");
+      setIsApiKeyEditing(false);
+      toast.success("API ключ сохранен.");
     } catch (requestError) {
       toast.error(requestError.message);
     } finally {
@@ -89,7 +92,8 @@ export default function DashboardPage() {
 
       setHasUserApiKey(Boolean(data.has_llm_api_key));
       setApiKeyInput("");
-      toast.success("API key removed.");
+      setIsApiKeyEditing(false);
+      toast.success("API ключ удален.");
     } catch (requestError) {
       toast.error(requestError.message);
     } finally {
@@ -103,7 +107,7 @@ export default function DashboardPage() {
     const trimmedFolderId = folderIdInput.trim();
 
     if (!isValidUserLlmFolderId(trimmedFolderId)) {
-      toast.error("Folder ID must be 6-128 characters and contain only letters, numbers, underscores, or hyphens.");
+      toast.error("Folder ID должен быть длиной от 6 до 128 символов и содержать только буквы, цифры, нижние подчеркивания или дефисы.");
       return;
     }
 
@@ -118,7 +122,8 @@ export default function DashboardPage() {
 
       setHasUserFolderId(Boolean(data.has_llm_folder_id));
       setFolderIdInput("");
-      toast.success("Folder ID saved.");
+      setIsFolderIdEditing(false);
+      toast.success("Folder ID сохранен.");
     } catch (requestError) {
       toast.error(requestError.message);
     } finally {
@@ -137,7 +142,8 @@ export default function DashboardPage() {
 
       setHasUserFolderId(Boolean(data.has_llm_folder_id));
       setFolderIdInput("");
-      toast.success("Folder ID removed.");
+      setIsFolderIdEditing(false);
+      toast.success("Folder ID удален.");
     } catch (requestError) {
       toast.error(requestError.message);
     } finally {
@@ -146,13 +152,13 @@ export default function DashboardPage() {
   }
 
   if (loading) {
-    return <main className="centered-state">Loading profile...</main>;
+    return <main className="centered-state">Загрузка профиля...</main>;
   }
 
   return (
     <AppLayout
-      title="Dashboard"
-      subtitle="JWT auth is active. Use this page as the role-based entry point."
+      title="Личный кабинет"
+      subtitle="Управление профилем и настройками ИИ-ассистента."
       user={user}
       onLogout={handleLogout}
     >
@@ -166,19 +172,19 @@ export default function DashboardPage() {
         {user ? (
           <div className="profile-grid">
             <div>
-              <span className="profile-label">Name</span>
+              <span className="profile-label">Имя</span>
               <strong>{user.name}</strong>
             </div>
             <div>
-              <span className="profile-label">Email</span>
+              <span className="profile-label">Электронная почта</span>
               <strong>{user.email}</strong>
             </div>
             <div>
-              <span className="profile-label">Role</span>
-              <strong>{user.role}</strong>
+              <span className="profile-label">Роль</span>
+              <strong>{user.role === "author" ? "Автор" : "Студент"}</strong>
             </div>
             <div>
-              <span className="profile-label">API</span>
+              <span className="profile-label">API URL</span>
               <strong>{getApiUrl()}</strong>
             </div>
           </div>
@@ -187,30 +193,37 @@ export default function DashboardPage() {
         {user ? (
           <section className="profile-api-key-settings" aria-label="LLM API key settings">
             <div>
-              <h2>LLM API key</h2>
+              <h2>API ключ LLM</h2>
               <p className="helper-text">
                 {hasUserApiKey
                   ? hasUserFolderId
-                    ? "Personal Yandex credentials are configured for assistant requests."
-                    : "Add your Yandex Folder ID to enable assistant chat."
-                  : "Assistant chat is unavailable until you add a personal API key and Folder ID."}
+                    ? "Персональные данные Yandex настроены для работы ассистента."
+                    : "Добавьте персональный Folder ID, чтобы включить чат с ассистентом."
+                  : "Чат ассистента недоступен, пока вы не добавите персональный API ключ и Folder ID."}
               </p>
             </div>
 
             <form className="profile-api-key-form" onSubmit={handleApiKeySubmit}>
               <label className="profile-api-key-field">
-                <span className="profile-label">Personal Yandex API key</span>
+                <span className="profile-label">Персональный API ключ Yandex</span>
                 <input
                   type="password"
-                  value={apiKeyInput}
+                  value={hasUserApiKey && !isApiKeyEditing ? "••••••••••••••••••••••••••••••••••••••••" : apiKeyInput}
                   onChange={(event) => setApiKeyInput(event.target.value)}
-                  placeholder={hasUserApiKey ? "Enter a new key to replace the saved one" : "Enter your API key"}
+                  onFocus={() => setIsApiKeyEditing(true)}
+                  onBlur={() => {
+                    if (!apiKeyInput.trim()) {
+                      setIsApiKeyEditing(false);
+                    }
+                  }}
+                  placeholder="Введите ваш API ключ"
                   autoComplete="off"
+                  readOnly={hasUserApiKey && !isApiKeyEditing}
                 />
               </label>
               <div className="profile-api-key-actions">
                 <button type="submit" disabled={apiKeySaving || !apiKeyInput.trim()}>
-                  {apiKeySaving ? "Saving..." : hasUserApiKey ? "Replace key" : "Save key"}
+                  {apiKeySaving ? "Сохранение..." : hasUserApiKey ? "Заменить ключ" : "Сохранить ключ"}
                 </button>
                 {hasUserApiKey ? (
                   <button
@@ -219,7 +232,7 @@ export default function DashboardPage() {
                     onClick={handleApiKeyDelete}
                     disabled={apiKeySaving}
                   >
-                    Delete key
+                    Удалить ключ
                   </button>
                 ) : null}
               </div>
@@ -227,18 +240,25 @@ export default function DashboardPage() {
 
             <form className="profile-api-key-form" onSubmit={handleFolderIdSubmit}>
               <label className="profile-api-key-field">
-                <span className="profile-label">Personal Yandex Folder ID</span>
+                <span className="profile-label">Персональный Yandex Folder ID</span>
                 <input
                   type="text"
-                  value={folderIdInput}
+                  value={hasUserFolderId && !isFolderIdEditing ? "•••••••••••••••••••••••" : folderIdInput}
                   onChange={(event) => setFolderIdInput(event.target.value)}
-                  placeholder="Enter your Folder ID"
+                  onFocus={() => setIsFolderIdEditing(true)}
+                  onBlur={() => {
+                    if (!folderIdInput.trim()) {
+                      setIsFolderIdEditing(false);
+                    }
+                  }}
+                  placeholder="Введите ваш Folder ID"
                   autoComplete="off"
+                  readOnly={hasUserFolderId && !isFolderIdEditing}
                 />
               </label>
               <div className="profile-api-key-actions">
                 <button type="submit" disabled={folderIdSaving || !folderIdInput.trim()}>
-                  {folderIdSaving ? "Saving..." : hasUserFolderId ? "Replace Folder ID" : "Save Folder ID"}
+                  {folderIdSaving ? "Сохранение..." : hasUserFolderId ? "Заменить Folder ID" : "Сохранить Folder ID"}
                 </button>
                 {hasUserFolderId ? (
                   <button
@@ -247,7 +267,7 @@ export default function DashboardPage() {
                     onClick={handleFolderIdDelete}
                     disabled={folderIdSaving}
                   >
-                    Delete Folder ID
+                    Удалить Folder ID
                   </button>
                 ) : null}
               </div>
@@ -258,17 +278,17 @@ export default function DashboardPage() {
         {user?.role === "author" ? (
           <div className="action-row">
             <Link className="primary-link-button" to="/author/dashboard">
-              Go to Author Dashboard
+              Перейти в панель автора
             </Link>
             <Link className="secondary-link-button" to="/courses">
-              View Published Courses
+              Просмотр опубликованных курсов
             </Link>
           </div>
         ) : (
           <>
             <div className="action-row">
               <Link className="primary-link-button" to="/courses">
-                Browse Courses
+                Каталог курсов
               </Link>
             </div>
             
