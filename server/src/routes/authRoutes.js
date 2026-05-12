@@ -232,4 +232,52 @@ router.delete("/me/folder-id", authMiddleware, async (request, response) => {
   }
 });
 
+router.put("/me/password", authMiddleware, async (request, response) => {
+  const { currentPassword, newPassword } = request.body;
+
+  if (!currentPassword || !newPassword) {
+    return response.status(400).json({ message: "Current and new passwords are required" });
+  }
+
+  if (newPassword.length < 6) {
+    return response.status(400).json({ message: "New password must be at least 6 characters long" });
+  }
+
+  if (currentPassword === newPassword) {
+    return response.status(400).json({ message: "New password must be different from current password" });
+  }
+
+  try {
+    const userResult = await pool.query("SELECT password_hash FROM users WHERE id = $1", [
+      request.user.id
+    ]);
+
+    if (userResult.rowCount === 0) {
+      return response.status(404).json({ message: "User not found" });
+    }
+
+    const { password_hash } = userResult.rows[0];
+    const passwordMatches = await bcrypt.compare(currentPassword, password_hash);
+
+    if (!passwordMatches) {
+      return response.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [
+      newPasswordHash,
+      request.user.id
+    ]);
+
+    console.log("[auth/password] Updated password for user:", { userId: request.user.id });
+    return response.json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("[auth/password] Failed to update password:", {
+      userId: request.user.id,
+      reason: error.message
+    });
+    return response.status(500).json({ message: "Failed to update password" });
+  }
+});
+
 export default router;

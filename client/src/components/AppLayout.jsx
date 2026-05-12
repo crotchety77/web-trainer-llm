@@ -12,13 +12,23 @@ export default function AppLayout({ title, subtitle, user, onLogout, children })
   return (
     <div className="app-shell">
       <header className="topbar">
-        <Link className="brand" to={user?.role === "author" ? "/author/dashboard" : "/courses"}>
+        <Link 
+          className="brand" 
+          to={
+            user?.role === "admin" 
+              ? "/admin/users" 
+              : user?.role === "author" 
+                ? "/author/dashboard" 
+                : "/courses"
+          }
+        >
           Web Trainer Platform
         </Link>
 
         <nav className="topnav">
           <NavLink to="/courses">Все курсы</NavLink>
           {user?.role === "author" ? <NavLink to="/author/dashboard">Панель автора</NavLink> : null}
+          {user?.role === "admin" ? <NavLink to="/admin/users">Панель админа</NavLink> : null}
           {user ? <NavLink to="/dashboard">Профиль</NavLink> : null}
           {user ? (
             <button type="button" className="link-button" onClick={handleLogout}>

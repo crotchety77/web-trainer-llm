@@ -6,6 +6,7 @@ import { config } from "./config.js";
 import { getAiStatus } from "./modules/ai.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import codeRoutes from "./routes/codeRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 export const app = express();
 
@@ -80,6 +81,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", courseRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api", codeRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use((error, request, response, next) => {
   if (response.headersSent) {

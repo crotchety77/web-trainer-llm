@@ -1562,3 +1562,15 @@ h4 {
 .custom-dropdown li:hover {
   background-color: #f3f4f6;
 }
+
+.profile-password-settings {
+  padding-top: 0rem;
+  border-top: 1px solid #d9e3f5;
+  margin-top: 2.5rem;
+  padding-top: 20px;
+}
+
+.profile-password-settings h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}

@@ -30,6 +30,11 @@ export default function DashboardPage() {
   const [isFolderIdEditing, setIsFolderIdEditing] = useState(false);
   const [apiKeySaving, setApiKeySaving] = useState(false);
   const [folderIdSaving, setFolderIdSaving] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [isPasswordSectionOpen, setIsPasswordSectionOpen] = useState(false);
 
   useEffect(() => {
     setHasUserApiKey(Boolean(user?.has_llm_api_key));
@@ -151,6 +156,49 @@ export default function DashboardPage() {
     }
   }
 
+  async function handlePasswordSubmit(event) {
+    event.preventDefault();
+
+    if (!currentPassword) {
+      toast.error("Введите текущий пароль.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Новый пароль должен быть не менее 6 символов.");
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      toast.error("Новый пароль должен отличаться от старого.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Пароли не совпадают.");
+      return;
+    }
+
+    setPasswordSaving(true);
+
+    try {
+      await apiRequest("/api/auth/me/password", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Пароль успешно изменен.");
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setPasswordSaving(false);
+    }
+  }
+
   if (loading) {
     return <main className="centered-state">Загрузка профиля...</main>;
   }
@@ -181,7 +229,13 @@ export default function DashboardPage() {
             </div>
             <div>
               <span className="profile-label">Роль</span>
-              <strong>{user.role === "author" ? "Автор" : "Студент"}</strong>
+              <strong>
+                {user.role === "admin"
+                  ? "Администратор"
+                  : user.role === "author"
+                    ? "Автор"
+                    : "Студент"}
+              </strong>
             </div>
             <div>
               <span className="profile-label">API URL</span>
@@ -190,7 +244,78 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        {user ? (
+        <section className="profile-password-settings">
+          <header
+            onClick={() => setIsPasswordSectionOpen(!isPasswordSectionOpen)}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+              userSelect: 'none'
+            }}
+          >
+            <div>
+              <h2>Смена пароля</h2>
+              <p className="helper-text" style={{ margin: '4px 0 0 0' }}>Открытие секции смены пароля</p>
+            </div>
+            <span style={{
+              fontSize: '1.5rem',
+              transition: 'transform 0.3s ease',
+              transform: isPasswordSectionOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+              color: 'var(--primary-color)'
+            }}>
+              ›
+            </span>
+          </header>
+
+          {isPasswordSectionOpen && (
+            <form className="profile-api-key-form" onSubmit={handlePasswordSubmit} style={{ marginTop: "1.5rem" }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <label className="profile-api-key-field" style={{ maxWidth: '400px' }}>
+                  <span className="profile-label">Текущий пароль</span>
+                  <input
+                    type="text"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Введите текущий пароль"
+                    required
+                  />
+                </label>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+                  <label className="profile-api-key-field" style={{ flex: '1 1 300px' }}>
+                    <span className="profile-label">Новый пароль</span>
+                    <input
+                      type="text"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Минимум 6 символов"
+                      required
+                    />
+                  </label>
+                  <label className="profile-api-key-field" style={{ flex: '1 1 300px' }}>
+                    <span className="profile-label">Подтвердите новый пароль</span>
+                    <input
+                      type="text"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Повторите новый пароль"
+                      required
+                    />
+                  </label>
+                </div>
+              </div>
+              <div className="profile-api-key-actions" style={{ marginTop: '1.5rem' }}>
+                <button type="submit" disabled={passwordSaving || !newPassword || !currentPassword}>
+                  {passwordSaving ? "Сохранение..." : "Обновить пароль"}
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+
+        {user && user.role !== "admin" ? (
           <section className="profile-api-key-settings" aria-label="LLM API key settings">
             <div>
               <h2>API ключ LLM</h2>
@@ -275,7 +400,16 @@ export default function DashboardPage() {
           </section>
         ) : null}
 
-        {user?.role === "author" ? (
+        {user?.role === "admin" ? (
+          <div className="action-row">
+            <Link className="primary-link-button" to="/admin/users">
+              Перейти в панель админа
+            </Link>
+            <Link className="secondary-link-button" to="/courses">
+              Просмотр каталога курсов
+            </Link>
+          </div>
+        ) : user?.role === "author" ? (
           <div className="action-row">
             <Link className="primary-link-button" to="/author/dashboard">
               Перейти в панель автора
@@ -291,7 +425,7 @@ export default function DashboardPage() {
                 Каталог курсов
               </Link>
             </div>
-            
+
             <div style={{ marginTop: "2.5rem" }}>
               <h3 style={{ marginBottom: "1rem" }}>Мой прогресс обучения</h3>
               {loadingEnrollments ? (

@@ -9,6 +9,7 @@ import LearnPage from "./pages/LearnPage";
 import AuthorDashboardPage from "./pages/AuthorDashboardPage";
 import AuthorCourseEditorPage from "./pages/AuthorCourseEditorPage";
 import AuthorCourseContentEditorPage from "./pages/AuthorCourseContentEditorPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
 import { ToastProvider } from "./hooks/useToast";
 
 export default function App() {
@@ -21,7 +22,7 @@ export default function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute roles={["student", "author"]}>
+            <ProtectedRoute roles={["student", "author", "admin"]}>
               <DashboardPage />
             </ProtectedRoute>
           }
@@ -34,6 +35,14 @@ export default function App() {
           element={
             <ProtectedRoute roles={["author"]}>
               <AuthorDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <AdminUsersPage />
             </ProtectedRoute>
           }
         />

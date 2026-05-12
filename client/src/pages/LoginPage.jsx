@@ -29,7 +29,13 @@ export default function LoginPage() {
       });
 
       setToken(data.token);
-      navigate(data.user.role === "author" ? "/author/dashboard" : "/courses");
+      if (data.user.role === "admin") {
+        navigate("/admin/users");
+      } else if (data.user.role === "author") {
+        navigate("/author/dashboard");
+      } else {
+        navigate("/courses");
+      }
     } catch (requestError) {
       toast.error("Не удалось войти. Проверьте email и пароль");
     } finally {
