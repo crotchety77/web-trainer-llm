@@ -624,6 +624,17 @@ export default function LearnPage() {
                     ))
                   )}
                   {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Печатает...</div>}
+                  {chatMessages.length > 0 && (
+                    <div style={{ textAlign: "right", paddingRight: "0.5rem", marginTop: "-0.75rem" }}>
+                      <span 
+                        className="chat-clear-label" 
+                        onClick={() => setChatMessages([])}
+                        title="Очистить историю сообщений для этого урока"
+                      >
+                        Очистить чат
+                      </span>
+                    </div>
+                  )}
                   <div ref={chatEndRef} />
                 </div>
 

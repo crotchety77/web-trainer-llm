@@ -1254,6 +1254,7 @@ export default function AuthorCourseContentEditorPage() {
             </div>
 
             <div className="chat-history" style={{ flex: 1, overflowY: "auto", padding: "1rem 0", display: "flex", flexDirection: "column", gap: "1rem" }}>
+
               {chatMessages.length === 0 ? (
                 <div className="author-assistant-placeholder">
                   {isAssistantAvailable ? (
@@ -1279,6 +1280,17 @@ export default function AuthorCourseContentEditorPage() {
                 ))
               )}
               {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Печатает...</div>}
+              {chatMessages.length > 0 && (
+                <div style={{ textAlign: "right", paddingRight: "0.5rem", marginTop: "-0.75rem" }}>
+                  <span
+                    className="chat-clear-label"
+                    onClick={() => setChatMessages([])}
+                    title="Очистить историю сообщений"
+                  >
+                    Очистить контекст чата
+                  </span>
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
 
@@ -1287,7 +1299,7 @@ export default function AuthorCourseContentEditorPage() {
                 value={chatInput}
                 onChange={setChatInput}
                 onSubmit={() => handleChatSubmit()}
-                placeholder={isAssistantAvailable ? "Например:\nУлучши объяснение выбранного блока\nПридумай практическое задание по теме" : "Чат недоступен. Добавьте API ключ и Folder ID."}
+                placeholder={isAssistantAvailable ? "Улучши объяснение выбранного блока\nПридумай практическое задание по теме" : "Чат недоступен. Добавьте API ключ и Folder ID."}
                 disabled={isChatLoading || !isAssistantAvailable}
               />
               <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !isAssistantAvailable}>

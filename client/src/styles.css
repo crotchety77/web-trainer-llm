@@ -447,6 +447,19 @@ h4 {
   font-size: 1.15rem;
 }
 
+.chat-clear-label {
+  color: #8fa3b8;
+  font-size: 12px;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  display: inline-block;
+}
+
+.chat-clear-label:hover {
+  opacity: 1;
+}
+
 .profile-api-key-form {
   display: grid;
   grid-template-columns: minmax(160px, 320px) auto;

@@ -1,5 +1,6 @@
 import { SYSTEM_PROMPTS } from "../routes/templatesAi.js";
 
+
 /**
  * Очищает историю сообщений от любых системных промптов клиента и скрытых инструкций.
  * Гарантирует, что история содержит только роли 'user' и 'assistant'.
@@ -8,8 +9,11 @@ import { SYSTEM_PROMPTS } from "../routes/templatesAi.js";
 export function normalizeMessages(history) {
   if (!Array.isArray(history)) return [];
   
+  const MAX_HISTORY = 10;
+  
   return history
     .filter(msg => msg && (msg.role === "user" || msg.role === "assistant") && typeof msg.text === "string")
+    .slice(-MAX_HISTORY)
     .map(msg => ({
       role: msg.role,
       text: msg.text // Копируем только текст, отсекая любые неожиданные свойства объекта

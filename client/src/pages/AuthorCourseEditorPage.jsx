@@ -301,6 +301,17 @@ export default function AuthorCourseEditorPage() {
             {isChatLoading ? (
               <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Печатает...</div>
             ) : null}
+            {chatMessages.length > 0 && (
+              <div style={{ textAlign: "right", paddingRight: "0.5rem", marginTop: "-0.75rem" }}>
+                <span 
+                  className="chat-clear-label" 
+                  onClick={() => setChatMessages([])}
+                  title="Очистить историю сообщений"
+                >
+                  Очистить чат
+                </span>
+              </div>
+            )}
             <div ref={chatEndRef} />
           </div>
 
