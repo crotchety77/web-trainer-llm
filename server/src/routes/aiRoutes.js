@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { authMiddleware, requireRole } from "../middleware/authMiddleware.js";
 import { generateChatResponse } from "../modules/ai.js";
 import { buildPrompt } from "../modules/promptBuilder.js";
 import { pool } from "../db.js";
@@ -34,7 +34,7 @@ async function resolveUserLlmSettings(userId) {
   }
 }
 
-router.post("/chat", authMiddleware, async (request, response) => {
+router.post("/chat", authMiddleware, requireRole("student", "author", "admin"), async (request, response) => {
   // Ожидаем сырые данные вместо готового массива
   const { userInput, lessonContext, stepsContext, chatHistory, mode } = request.body;
   const userRole = request.user?.role;

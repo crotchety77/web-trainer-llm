@@ -2,11 +2,9 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import CodeEditor from "../components/CodeEditor";
-import AssistantTextarea from "../components/AssistantTextarea";
-import AssistantUnavailableNotice from "../components/AssistantUnavailableNotice";
+import AIChatPanel from "../components/AIChatPanel";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
-import ReactMarkdown from "react-markdown";
 import { clearToken, getAuthHeaders } from "../lib/auth";
 import { extractStepRefs } from "../utils/extractStepRefs";
 import { buildLessonSummaryContext, buildStepsContext } from "../utils/aiContextBuilders";
@@ -567,101 +565,23 @@ export default function LearnPage() {
                 </div>
               </main>
 
-              <aside className="assistant-panel" aria-label="Chat assistant" style={{ display: "flex", flexDirection: "column" }}>
-                <div>
-                  <span className="eyebrow">Ассистент</span>
-                  <h2>Чат</h2>
-                </div>
-
-                <div className="chat-quick-actions">
-                  {STUDENT_MODES.map(mode => (
-                    <button
-                      key={mode.id}
-                      type="button"
-                      onClick={() => isAssistantAvailable && setActiveMode(activeMode === mode.id ? null : mode.id)}
-                      disabled={!isAssistantAvailable}
-                      style={{
-                        fontSize: "0.75rem",
-                        minHeight: "38px",
-                        padding: "0.45rem 0.55rem",
-                        borderRadius: "8px",
-                        border: "1px solid var(--border-color, #cbd5e1)",
-                        background: activeMode === mode.id ? "var(--primary-color, #0284c7)" : "transparent",
-                        color: activeMode === mode.id ? "#fff" : (isAssistantAvailable ? "inherit" : "var(--text-muted, #94a3b8)"),
-                        cursor: isAssistantAvailable ? "pointer" : "not-allowed",
-                        whiteSpace: "normal",
-                        lineHeight: 1.2
-                      }}
-                    >
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="chat-history" style={{ flex: 1, overflowY: "auto", padding: "1rem 0", display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  {chatMessages.length === 0 ? (
-                    <div className="assistant-placeholder">
-                      {isAssistantAvailable ? (
-                        <p>{MODE_DESCRIPTIONS[activeMode || "default"]}</p>
-                      ) : (
-                        <AssistantUnavailableNotice />
-                      )}
-                    </div>
-                  ) : (
-                    chatMessages.map((msg, index) => (
-                      <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%", marginRight: msg.role === "user" ? "0.5rem" : "0" }}>
-                        {msg.role === "user" && (
-                          <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{user?.name || "You"}</strong>
-                        )}
-                        {msg.role === "assistant" ? (
-                          <div className="markdown-content" style={{ paddingTop: "0.25rem", fontSize: "0.95rem" }}>
-                            <ReactMarkdown>{msg.text}</ReactMarkdown>
-                          </div>
-                        ) : (
-                          <p style={{ margin: "0.25rem 0 0 0", whiteSpace: "pre-wrap", fontSize: "0.95rem" }}>{msg.text}</p>
-                        )}
-                      </div>
-                    ))
-                  )}
-                  {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Печатает...</div>}
-                  {chatMessages.length > 0 && (
-                    <div style={{ textAlign: "right", paddingRight: "0.5rem", marginTop: "-0.75rem" }}>
-                      <span 
-                        className="chat-clear-label" 
-                        onClick={() => setChatMessages([])}
-                        title="Очистить историю сообщений для этого урока"
-                      >
-                        Очистить чат
-                      </span>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-
-                <div>
-                  {detectedStepRefs.length > 0 ? (
-                    <div className="assistant-context-hints" aria-label="Selected step context">
-                      {detectedStepRefs.map((stepNumber) => (
-                        <span key={stepNumber} className="tag-chip">
-                          @step{stepNumber}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  <form className="assistant-input-row" onSubmit={handleChatSubmit}>
-                    <AssistantTextarea
-                      value={chatInput}
-                      onChange={setChatInput}
-                      onSubmit={() => handleChatSubmit()}
-                      placeholder={isAssistantAvailable ? "Например:\n@step2 почему у меня ошибка?\n@step3 объясни что делает этот код" : "Чат недоступен. Добавьте API ключ и Folder ID."}
-                      disabled={isChatLoading || !isAssistantAvailable}
-                    />
-                    <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !isAssistantAvailable}>
-                      Отправить
-                    </button>
-                  </form>
-                </div>
-              </aside>
+              <AIChatPanel
+                className="assistant-panel"
+                user={user}
+                messages={chatMessages}
+                chatInput={chatInput}
+                setChatInput={setChatInput}
+                onSendMessage={handleChatSubmit}
+                onClearHistory={() => setChatMessages([])}
+                isChatLoading={isChatLoading}
+                isAssistantAvailable={isAssistantAvailable}
+                activeMode={activeMode}
+                setActiveMode={setActiveMode}
+                modes={STUDENT_MODES}
+                modeDescriptions={MODE_DESCRIPTIONS}
+                detectedContext={detectedStepRefs}
+                chatEndRef={chatEndRef}
+              />
             </div>
           </div>
         ) : null}

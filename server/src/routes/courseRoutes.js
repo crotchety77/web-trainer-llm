@@ -346,7 +346,7 @@ router.get("/my/courses", authMiddleware, requireRole("author"), async (request,
 router.post(
   "/courses/:courseId/enroll",
   authMiddleware,
-  requireRole("student"),
+  requireRole("student", "admin"),
   async (request, response) => {
     const courseId = Number(request.params.courseId);
 
@@ -684,7 +684,7 @@ router.delete("/blocks/:id", authMiddleware, requireRole("author"), async (reque
 router.post(
   "/blocks/:blockId/submissions",
   authMiddleware,
-  requireRole("student"),
+  requireRole("student", "admin"),
   async (request, response) => {
     const blockId = Number(request.params.blockId);
     const code = String(request.body.code || "").trim();
@@ -726,11 +726,11 @@ router.post(
           quizData.test_cases,
           quizData.function_name
         );
-        
+
         if (executionResult) {
-           resultStatus = executionResult.status;
-           resultMessage = executionResult.result_message;
-           testsResult = executionResult.tests_result;
+          resultStatus = executionResult.status;
+          resultMessage = executionResult.result_message;
+          testsResult = executionResult.tests_result;
         }
       }
 
@@ -761,12 +761,12 @@ router.post(
 
       // Автоматическое зачисление в прогресс, если код прошел проверку
       if (resultStatus === "passed" || resultStatus === "accepted") {
-         await pool.query(
-           `INSERT INTO user_course_progress (user_id, course_id, lesson_id, block_id)
+        await pool.query(
+          `INSERT INTO user_course_progress (user_id, course_id, lesson_id, block_id)
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (user_id, block_id) DO NOTHING`,
-           [request.user.id, block.course_id, block.lesson_id, blockId]
-         );
+          [request.user.id, block.course_id, block.lesson_id, blockId]
+        );
       }
 
       return response.status(201).json({ submission: result.rows[0] });
@@ -780,7 +780,7 @@ router.post(
 router.post(
   "/blocks/:blockId/submit",
   authMiddleware,
-  requireRole("student"),
+  requireRole("student", "admin"),
   async (request, response) => {
     const blockId = Number(request.params.blockId);
     const answers = Array.isArray(request.body.answers) ? request.body.answers.map(Number) : [];
@@ -804,34 +804,34 @@ router.post(
         "SELECT id FROM user_quiz_attempts WHERE user_id = $1 AND block_id = $2 AND is_correct = TRUE",
         [request.user.id, blockId]
       );
-      
+
       if (passedCheck.rowCount > 0) {
-         return response.status(400).json({ message: "You have already completed this quiz" });
+        return response.status(400).json({ message: "You have already completed this quiz" });
       }
 
       const quizData = block.quiz_data || {};
       const options = quizData.options || [];
-      
+
       let isCorrect = true;
       let hint = "";
 
       if (options.length === 0) {
-         return response.status(400).json({ message: "This block does not contain a valid quiz" });
+        return response.status(400).json({ message: "This block does not contain a valid quiz" });
       }
 
       const correctIndices = options.map((opt, idx) => opt.is_correct ? idx : -1).filter(idx => idx !== -1);
-      
+
       if (correctIndices.length !== answers.length || !correctIndices.every(idx => answers.includes(idx))) {
-         isCorrect = false;
-         for (const ans of answers) {
-            if (!correctIndices.includes(ans) && options[ans] && options[ans].hint) {
-               hint = options[ans].hint;
-               break;
-            }
-         }
-         if (!hint) {
-            hint = "Ваш ответ неверный. Попробуйте еще раз.";
-         }
+        isCorrect = false;
+        for (const ans of answers) {
+          if (!correctIndices.includes(ans) && options[ans] && options[ans].hint) {
+            hint = options[ans].hint;
+            break;
+          }
+        }
+        if (!hint) {
+          hint = "Ваш ответ неверный. Попробуйте еще раз.";
+        }
       }
 
       // Автоматическая запись на курс
@@ -850,17 +850,17 @@ router.post(
       );
 
       if (isCorrect) {
-         await pool.query(
-           `INSERT INTO user_course_progress (user_id, course_id, lesson_id, block_id)
+        await pool.query(
+          `INSERT INTO user_course_progress (user_id, course_id, lesson_id, block_id)
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (user_id, block_id) DO NOTHING`,
-           [request.user.id, block.course_id, block.lesson_id, blockId]
-         );
+          [request.user.id, block.course_id, block.lesson_id, blockId]
+        );
       }
 
-      return response.status(201).json({ 
-         attempt: result.rows[0],
-         hint: isCorrect ? null : hint
+      return response.status(201).json({
+        attempt: result.rows[0],
+        hint: isCorrect ? null : hint
       });
     } catch (error) {
       console.error("[blocks/submit] Failed:", error.message);

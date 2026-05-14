@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { pool } from "../db.js";
 import { config } from "../config.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { authMiddleware, requireRole } from "../middleware/authMiddleware.js";
 import {
   encryptUserApiKey,
   isValidUserLlmApiKey,
@@ -147,7 +147,7 @@ router.get("/me", authMiddleware, async (request, response) => {
   }
 });
 
-router.put("/me/api-key", authMiddleware, async (request, response) => {
+router.put("/me/api-key", authMiddleware, requireRole("student", "author", "admin"), async (request, response) => {
   const { apiKey } = request.body;
 
   if (!isValidUserLlmApiKey(apiKey)) {
@@ -172,7 +172,7 @@ router.put("/me/api-key", authMiddleware, async (request, response) => {
   }
 });
 
-router.delete("/me/api-key", authMiddleware, async (request, response) => {
+router.delete("/me/api-key", authMiddleware, requireRole("student", "author", "admin"), async (request, response) => {
   try {
     await pool.query(
       "UPDATE users SET llm_api_key_encrypted = NULL WHERE id = $1",
@@ -190,7 +190,7 @@ router.delete("/me/api-key", authMiddleware, async (request, response) => {
   }
 });
 
-router.put("/me/folder-id", authMiddleware, async (request, response) => {
+router.put("/me/folder-id", authMiddleware, requireRole("student", "author", "admin"), async (request, response) => {
   const { folderId } = request.body;
 
   if (!isValidUserLlmFolderId(folderId)) {
@@ -214,7 +214,7 @@ router.put("/me/folder-id", authMiddleware, async (request, response) => {
   }
 });
 
-router.delete("/me/folder-id", authMiddleware, async (request, response) => {
+router.delete("/me/folder-id", authMiddleware, requireRole("student", "author", "admin"), async (request, response) => {
   try {
     await pool.query(
       "UPDATE users SET llm_folder_id = NULL WHERE id = $1",

@@ -1,8 +1,11 @@
 import { Router } from "express";
 import axios from "axios";
 import { executeCodeOnPiston } from "../modules/pistonExecutor.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = Router();
+
+router.use(authMiddleware);
 
 router.post("/run", async (req, res) => {
   const { language, code } = req.body;
