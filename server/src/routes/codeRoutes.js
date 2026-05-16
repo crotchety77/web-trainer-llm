@@ -15,7 +15,7 @@ router.post("/run", async (req, res) => {
   }
 
   try {
-    const response = await axios.post("http://127.0.0.1:2000/api/v2/execute", {
+    const response = await axios.post(`${process.env.PISTON_URL || "http://127.0.0.1:2000"}/api/v2/execute`, {
       language: language,
       version: "*",
       files: [{ content: code }]

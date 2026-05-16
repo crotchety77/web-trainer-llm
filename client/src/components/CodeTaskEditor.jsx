@@ -145,8 +145,9 @@ export default function CodeTaskEditor({
           className="secondary-button"
           onClick={() => handleAuthorTestSubmit(blockId)}
           disabled={isTestingCode}
+          title={isTestingCode ? "Отправляем запрос к Piston API..." : "Запустить код и проверить тесты"}
         >
-          {isTestingCode ? "Проверка..." : "Запустить тесты"}
+          {isTestingCode ? "⏳ Выполнение в песочнице..." : "▶ Запустить тесты"}
         </button>
 
         {authorTestResults && (
@@ -174,6 +175,14 @@ export default function CodeTaskEditor({
                           <div><strong style={{ color: "#64748b" }}>Реальный вывод:</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: "4px", color: "#b91c1c" }}>{detail.actual}</pre></div>
                         </div>
                       )}
+                      
+                      {/* --- РАЗДЕЛ ДЕБАГА ДЛЯ АВТОРА --- */}
+                      <div style={{ marginTop: "0.75rem", padding: "0.5rem", background: "#1e293b", color: "#e2e8f0", borderRadius: "4px", fontSize: "0.75rem", fontFamily: "monospace" }}>
+                         <strong style={{ color: "#94a3b8", display: "block", marginBottom: "0.5rem", fontFamily: "sans-serif" }}>🛠 Дебаг (Сырой лог Piston):</strong>
+                         {detail.raw_stdout && <div style={{ marginBottom: "0.5rem" }}><span style={{ color: "#4ade80", fontWeight: "bold" }}>[STDOUT]</span><br/><pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{detail.raw_stdout}</pre></div>}
+                         {detail.raw_stderr && <div><span style={{ color: "#f87171", fontWeight: "bold" }}>[STDERR]</span><br/><pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{detail.raw_stderr}</pre></div>}
+                         {!detail.raw_stdout && !detail.raw_stderr && <span style={{ color: "#64748b" }}>Вывод абсолютно пуст. Возможно, функция ничего не возвращает или не была вызвана.</span>}
+                      </div>
                     </div>
                   ))}
                 </div>

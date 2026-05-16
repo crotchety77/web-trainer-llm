@@ -8,6 +8,7 @@ import { apiRequest } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
 import { useToast } from "../hooks/useToast";
 import { buildAuthorStepsContext, buildLessonSummaryContext } from "../utils/aiContextBuilders";
+import { extractStepRefs } from "../utils/extractStepRefs";
 
 const emptyLesson = {
   title: "",
@@ -109,6 +110,7 @@ export default function AuthorCourseContentEditorPage() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef(null);
   const [activeMode, setActiveMode] = useState(null);
+  const detectedStepRefs = useMemo(() => extractStepRefs(chatInput), [chatInput]);
   const [authorTestCode, setAuthorTestCode] = useState({});
   const [authorTestResults, setAuthorTestResults] = useState({});
   const [isTestingCode, setIsTestingCode] = useState({});
@@ -1083,6 +1085,7 @@ export default function AuthorCourseContentEditorPage() {
             setActiveMode={setActiveMode}
             modes={AUTHOR_MODES}
             modeDescriptions={AUTHOR_MODE_DESCRIPTIONS}
+            detectedContext={detectedStepRefs}
             chatEndRef={chatEndRef}
           />
         </section>

@@ -1,5 +1,42 @@
 import axios from "axios";
 
+const REQUIRED_LANGUAGES = [
+  { language: "node", version: "*" },
+  { language: "python", version: "3.10.0" }
+];
+
+export async function initializePistonLanguages(retries = 5) {
+  if (retries === 5) console.log("[piston] Проверка установленных языков программирования...");
+  try {
+    const pistonUrl = process.env.PISTON_URL || "http://127.0.0.1:2000";
+
+    // Получаем список уже установленных пакетов
+    const response = await axios.get(`${pistonUrl}/api/v2/packages`);
+    const installedPackages = response.data.filter(pkg => pkg.installed);
+    const installedLangs = installedPackages.map(pkg => pkg.language);
+
+    for (const reqPkg of REQUIRED_LANGUAGES) {
+      if (!installedLangs.includes(reqPkg.language)) {
+        console.log(`[piston] Язык ${reqPkg.language} не установлен. Начинаю фоновую установку (это может занять время)...`);
+
+        // Запускаем установку без await, чтобы не блокировать старт сервера
+        axios.post(`${pistonUrl}/api/v2/packages`, reqPkg)
+          .then(() => console.log(`[piston] ✅ Язык ${reqPkg.language} успешно установлен!`))
+          .catch(err => console.error(`[piston] ❌ Ошибка установки ${reqPkg.language}:`, err.response?.data?.message || err.message));
+      } else {
+        if (retries === 5) console.log(`[piston] Язык ${reqPkg.language} уже установлен.`);
+      }
+    }
+  } catch (error) {
+    if (retries > 0) {
+      console.log(`[piston] Piston еще загружается (${error.message}). Повторная попытка через 3 секунды...`);
+      setTimeout(() => initializePistonLanguages(retries - 1), 3000);
+    } else {
+      console.error("[piston] Не удалось проверить пакеты после нескольких попыток. Piston оффлайн?", error.message);
+    }
+  }
+}
+
 /**
  * Выполняет код с переданными тест-кейсами через Piston API.
  * @param {string} code - Исходный код для выполнения
@@ -9,6 +46,19 @@ import axios from "axios";
  * @returns {Object} Результат выполнения: status, result_message, tests_result
  */
 export async function executeCodeOnPiston(code, language, testCases, functionName) {
+  // --- Pre-flight Health Check ---
+  try {
+    // Проверяем доступность API Piston перед запуском тестов
+    await axios.get(`${process.env.PISTON_URL || "http://127.0.0.1:2000"}/api/v2/runtimes`, { timeout: 1500 });
+  } catch (error) {
+    console.error("[piston] Health check failed:", error.message);
+    return {
+      status: "error",
+      result_message: "🚫 Сервис автоматической проверки кода временно недоступен (Docker offline). Попробуйте позже.",
+      tests_result: { total: 0, passed: 0, failed: 0, details: [] }
+    };
+  }
+
   if (!testCases || testCases.length === 0) {
     return {
       status: "accepted",
@@ -34,7 +84,7 @@ export async function executeCodeOnPiston(code, language, testCases, functionNam
         }
       }
 
-      const response = await axios.post("http://127.0.0.1:2000/api/v2/execute", {
+      const response = await axios.post(`${process.env.PISTON_URL || "http://127.0.0.1:2000"}/api/v2/execute`, {
         language: language || "javascript",
         version: "*",
         files: [{ content: executionCode }],
@@ -59,7 +109,7 @@ export async function executeCodeOnPiston(code, language, testCases, functionNam
         // Извлекаем тип ошибки или ставим заглушку
         const stderrStr = run.stderr.trim();
         let errorMessage = "⚠️ Ошибка выполнения (Runtime Error/Syntax Error)";
-        
+
         if (language === "javascript" || language === "js") {
           const errorMatch = stderrStr.match(/([a-zA-Z]+Error:.*)/);
           if (errorMatch) errorMessage = `⚠️ ${errorMatch[1]}`;
@@ -68,7 +118,7 @@ export async function executeCodeOnPiston(code, language, testCases, functionNam
           const lastLine = lines[lines.length - 1];
           if (lastLine && lastLine.includes("Error:")) errorMessage = `⚠️ ${lastLine}`;
         }
-        
+
         finalActualOutput = errorMessage + "\n(Полный вывод ошибки скрыт платформой)";
       }
 
@@ -78,7 +128,9 @@ export async function executeCodeOnPiston(code, language, testCases, functionNam
         actual: finalActualOutput,
         passed: passed,
         is_hidden: !!testCase.is_hidden,
-        exit_code: run.code
+        exit_code: run.code,
+        raw_stdout: run.stdout || "",
+        raw_stderr: run.stderr || ""
       });
     } catch (error) {
       console.error("Piston execution error:", error.message);
