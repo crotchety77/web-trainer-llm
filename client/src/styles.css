@@ -865,6 +865,35 @@ h4 {
   color: #334155;
 }
 
+.lecture-attachments,
+.attachment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.lecture-attachments a,
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.lecture-attachments a {
+  width: fit-content;
+  color: #0b63f6;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.lecture-attachments a:hover {
+  text-decoration: underline;
+}
+
 .code-submission {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 240px;
@@ -1189,6 +1218,14 @@ h4 {
   gap: 6px;
 }
 
+.author-field-grid label:nth-child(2) {
+  display: none;
+}
+
+.author-create-block label:nth-of-type(2) {
+  display: none;
+}
+
 .author-lesson-bar span,
 .author-create-block span,
 .author-field-grid span,
@@ -1223,6 +1260,56 @@ h4 {
   padding: 10px 14px;
   background: #0b63f6;
   color: #ffffff;
+}
+
+.attachment-manager {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.attachment-manager-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attachment-manager-header span {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.attachment-manager-header small,
+.attachment-item span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.attachment-manager input[type="file"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.attachment-item {
+  justify-content: space-between;
+}
+
+.attachment-item a {
+  min-width: 0;
+  overflow: hidden;
+  color: #0b63f6;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-item button {
+  flex: 0 0 auto;
 }
 
 .author-create-block {
@@ -1542,6 +1629,11 @@ h4 {
 /* Позиционирование контейнера для автодополнения */
 .filters-row .inline-field {
   position: relative;
+
+}
+
+.filters-row {
+  padding-bottom: 20px;
 }
 
 /* Сам выпадающий список */

@@ -4,7 +4,7 @@ import AppLayout from "../components/AppLayout";
 import CodeEditor from "../components/CodeEditor";
 import AIChatPanel from "../components/AIChatPanel";
 import { useAuthUser } from "../hooks/useAuthUser";
-import { apiRequest } from "../lib/api";
+import { apiRequest, getApiUrl } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
 import { extractStepRefs } from "../utils/extractStepRefs";
 import { buildLessonSummaryContext, buildStepsContext } from "../utils/aiContextBuilders";
@@ -35,6 +35,31 @@ const localizeError = (msg) => {
   }
   return msg;
 };
+
+function getBlockAttachments(value) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item) => item?.url);
+    }
+  } catch {
+    // Existing blocks may still store a single URL.
+  }
+
+  return [{ original_name: "Прикрепленный файл", url: value }];
+}
+
+function getAttachmentHref(url) {
+  if (!url || /^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  return `${getApiUrl()}${url}`;
+}
 
 export default function LearnPage() {
   const navigate = useNavigate();
@@ -418,10 +443,19 @@ export default function LearnPage() {
                         <div className="block-copy">
                           <h3>{block.title}</h3>
                           <p>{block.content}</p>
-                          {block.attachment_url ? (
-                            <a href={block.attachment_url} target="_blank" rel="noreferrer">
-                              Прикрепленный файл
-                            </a>
+                          {block.type === "lecture" && getBlockAttachments(block.attachment_url).length ? (
+                            <div className="lecture-attachments">
+                              {getBlockAttachments(block.attachment_url).map((attachment) => (
+                                <a
+                                  key={attachment.stored_name || attachment.url}
+                                  href={getAttachmentHref(attachment.url)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {attachment.original_name || "Скачать файл"}
+                                </a>
+                              ))}
+                            </div>
                           ) : null}
                         </div>
 

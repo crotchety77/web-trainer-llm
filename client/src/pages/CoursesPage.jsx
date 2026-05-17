@@ -7,7 +7,7 @@ import { clearToken } from "../lib/auth";
 import { useToast } from "../hooks/useToast";
 
 const DEFAULT_TAGS = [
-  "JavaScript", "TypeScript", "React", "Node.js", "Python", 
+  "JavaScript", "TypeScript", "React", "Node.js", "Python",
   "SQL", "JWT", "HTML", "CSS", "Go", "Docker"
 ];
 
@@ -33,7 +33,7 @@ export default function CoursesPage() {
     return Array.from(new Set([...DEFAULT_TAGS, ...allTags]));
   }, [allTags]);
 
-  const filteredTags = combinedTags.filter(t => 
+  const filteredTags = combinedTags.filter(t =>
     t.toLowerCase().includes(tag.toLowerCase())
   );
 
@@ -108,7 +108,7 @@ export default function CoursesPage() {
       onLogout={handleLogout}
     >
       <section className="panel">
-        <form className="filters-row" onSubmit={handleSearchSubmit}>
+        <form className="filters-row" onSubmit={handleSearchSubmit} style={{ alignItems: 'flex-end', width: '100%' }}>
           <label className="inline-field">
             <span>Поиск</span>
             <input
@@ -135,8 +135,8 @@ export default function CoursesPage() {
             {isOpen && filteredTags.length > 0 && (
               <ul className="custom-dropdown">
                 {filteredTags.slice(0, 5).map((item) => (
-                  <li 
-                    key={item} 
+                  <li
+                    key={item}
                     onClick={() => {
                       setTag(item);
                       setIsOpen(false);
@@ -149,8 +149,8 @@ export default function CoursesPage() {
             )}
           </label>
 
-          <button type="submit" className="secondary-button" style={{ marginLeft: 'auto' }}>
-            🔍 Поиск
+          <button type="submit" className="secondary-button">
+            Поиск
           </button>
         </form>
 

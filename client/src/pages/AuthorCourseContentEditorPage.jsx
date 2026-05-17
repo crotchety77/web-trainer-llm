@@ -4,7 +4,7 @@ import AIChatPanel from "../components/AIChatPanel";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
-import { apiRequest } from "../lib/api";
+import { apiFormRequest, apiRequest, getApiUrl } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
 import { useToast } from "../hooks/useToast";
 import { buildAuthorStepsContext, buildLessonSummaryContext } from "../utils/aiContextBuilders";
@@ -23,6 +23,42 @@ const emptyBlock = {
   position: 1,
   quiz_data: { quiz_type: "single", options: [] }
 };
+
+const MAX_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_EXTENSIONS = [".pdf", ".docx"];
+
+function getBlockAttachments(value) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item) => item?.url);
+    }
+  } catch {
+    // Existing data may contain one plain URL instead of JSON metadata.
+  }
+
+  return [{ original_name: "Прикрепленный файл", url: value, stored_name: "", size: 0 }];
+}
+
+function getAttachmentHref(url) {
+  if (!url || /^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  return `${getApiUrl()}${url}`;
+}
+
+function formatFileSize(bytes = 0) {
+  if (!bytes) {
+    return "";
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+}
 
 const AUTHOR_MODES = [
   { id: 'improve_text', label: '📝 Улучшить', icon: '📝' },
@@ -115,6 +151,7 @@ export default function AuthorCourseContentEditorPage() {
   const [authorTestResults, setAuthorTestResults] = useState({});
   const [isTestingCode, setIsTestingCode] = useState({});
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [attachmentUploadState, setAttachmentUploadState] = useState({});
 
   const selectedLesson = useMemo(() => {
     return lessons.find((lesson) => lesson.id === selectedLessonId) || null;
@@ -397,6 +434,62 @@ export default function AuthorCourseContentEditorPage() {
       toast.success("Блок удалён");
     } catch (requestError) {
       toast.error("Не удалось удалить блок");
+    }
+  }
+
+  async function handleAttachmentUpload(blockId, file) {
+    if (!file) {
+      return;
+    }
+
+    const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    if (!ALLOWED_ATTACHMENT_EXTENSIONS.includes(extension)) {
+      toast.error("Можно загрузить только PDF или DOCX");
+      return;
+    }
+
+    if (file.size >= MAX_ATTACHMENT_SIZE_BYTES) {
+      toast.error("Файл должен быть меньше 20 МБ");
+      return;
+    }
+
+    setAttachmentUploadState((current) => ({ ...current, [blockId]: { uploading: true } }));
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      await apiFormRequest(`/api/blocks/${blockId}/attachments`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: formData
+      });
+
+      await reloadSelectedLesson(blockId);
+      toast.success("Файл прикреплен");
+    } catch (requestError) {
+      toast.error(requestError.message || "Не удалось загрузить файл");
+    } finally {
+      setAttachmentUploadState((current) => ({ ...current, [blockId]: { uploading: false } }));
+    }
+  }
+
+  async function handleAttachmentDelete(blockId, storedName) {
+    if (!storedName) {
+      updateBlockDraft(blockId, "attachment_url", "");
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/blocks/${blockId}/attachments/${encodeURIComponent(storedName)}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+
+      await reloadSelectedLesson(blockId);
+      toast.success("Файл удален");
+    } catch (requestError) {
+      toast.error(requestError.message || "Не удалось удалить файл");
     }
   }
 
@@ -893,6 +986,45 @@ export default function AuthorCourseContentEditorPage() {
                           />
                         </label>
                       </div>
+
+                      {blockDrafts[selectedBlock.id]?.type === "lecture" && (
+                        <div className="attachment-manager">
+                          <div className="attachment-manager-header">
+                            <span>Методические материалы</span>
+                            <small>PDF или DOCX, до 20 МБ</small>
+                          </div>
+                          <input
+                            type="file"
+                            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            disabled={attachmentUploadState[selectedBlock.id]?.uploading}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              event.target.value = "";
+                              handleAttachmentUpload(selectedBlock.id, file);
+                            }}
+                          />
+                          <div className="attachment-list">
+                            {getBlockAttachments(blockDrafts[selectedBlock.id]?.attachment_url).map((attachment) => (
+                              <div key={attachment.stored_name || attachment.url} className="attachment-item">
+                                <a href={getAttachmentHref(attachment.url)} target="_blank" rel="noreferrer">
+                                  {attachment.original_name || "Файл"}
+                                </a>
+                                {attachment.size ? <span>{formatFileSize(attachment.size)}</span> : null}
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  onClick={() => handleAttachmentDelete(selectedBlock.id, attachment.stored_name)}
+                                >
+                                  Удалить
+                                </button>
+                              </div>
+                            ))}
+                            {!getBlockAttachments(blockDrafts[selectedBlock.id]?.attachment_url).length ? (
+                              <p className="helper-text">Файлы пока не прикреплены.</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      )}
 
                       <label className="author-content-field">
                         <span>Контент</span>
