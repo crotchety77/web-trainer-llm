@@ -84,16 +84,21 @@ export async function executeCodeOnPiston(code, language, testCases, functionNam
         }
       }
 
+      // stdin: если массив [2, 3] → строка "2 3" (разделитель пробел/перенос)
+      const stdinStr = Array.isArray(testCase.input)
+        ? testCase.input.join("\n")
+        : String(testCase.input ?? "");
+
       const response = await axios.post(`${process.env.PISTON_URL || "http://127.0.0.1:2000"}/api/v2/execute`, {
         language: language || "javascript",
         version: "*",
         files: [{ content: executionCode }],
-        stdin: testCase.input || ""
+        stdin: stdinStr
       });
 
       const run = response.data.run;
       const actualOutput = (run.stdout || "").trim();
-      const expectedOutput = (testCase.expected_output || "").trim();
+      const expectedOutput = String(testCase.expected_output ?? "").trim();
 
       // Успех = код возврата 0 и вывод совпадает
       const passed = run.code === 0 && actualOutput === expectedOutput;

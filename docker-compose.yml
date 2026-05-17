@@ -4,11 +4,14 @@ services:
   client:
     build: ./client
     ports:
-      - "5173:5173"
+      - "3000:5173"
     depends_on:
       - server
+    volumes:
+      - ./client:/app
+      - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:5000
+      - VITE_API_URL=
 
   server:
     build: ./server
