@@ -176,6 +176,10 @@ h4 {
   box-shadow: 0 18px 40px rgba(45, 87, 152, 0.08);
 }
 
+.panel>.action-row {
+  padding-bottom: 20px;
+}
+
 .sidebar-panel,
 .author-lessons-sidebar,
 .learn-sidebar {
@@ -198,6 +202,7 @@ h4 {
 .sidebar-panel .stack-list,
 .learn-sidebar .stack-list {
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   min-height: 0;
   margin-right: -10px;
@@ -207,23 +212,34 @@ h4 {
 .author-lessons-sidebar .stack-list::-webkit-scrollbar,
 .sidebar-panel .stack-list::-webkit-scrollbar,
 .learn-sidebar .stack-list::-webkit-scrollbar,
-.author-assistant-panel .chat-history::-webkit-scrollbar {
+.author-assistant-panel .chat-history::-webkit-scrollbar,
+.test-cases-scroll-container::-webkit-scrollbar {
   width: 5px;
 }
 
 .author-lessons-sidebar .stack-list::-webkit-scrollbar-thumb,
 .sidebar-panel .stack-list::-webkit-scrollbar-thumb,
 .learn-sidebar .stack-list::-webkit-scrollbar-thumb,
-.author-assistant-panel .chat-history::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
+.author-assistant-panel .chat-history::-webkit-scrollbar-thumb,
+.test-cases-scroll-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
   border-radius: 10px;
 }
 
 .author-lessons-sidebar .stack-list::-webkit-scrollbar-track,
 .sidebar-panel .stack-list::-webkit-scrollbar-track,
 .learn-sidebar .stack-list::-webkit-scrollbar-track,
-.author-assistant-panel .chat-history::-webkit-scrollbar-track {
+.author-assistant-panel .chat-history::-webkit-scrollbar-track,
+.test-cases-scroll-container::-webkit-scrollbar-track {
   background: transparent;
+}
+
+.test-cases-scroll-container {
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 6px;
+  display: grid;
+  gap: 0.5rem;
 }
 
 /* Chat Message Paragraph Styles */
@@ -625,6 +641,13 @@ h4 {
   color: #0369a1;
 }
 
+.lesson-link-card strong {
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
 .lesson-number {
   display: flex;
   align-items: center;
@@ -854,15 +877,22 @@ h4 {
 .block-copy {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
-.block-copy h3,
+.block-copy h3 {
+  margin: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  min-width: 0;
+}
+
 .block-copy p {
   margin: 0;
-}
-
-.block-copy p {
   color: #334155;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .lecture-attachments,
@@ -970,6 +1000,23 @@ h4 {
   text-transform: uppercase;
 }
 
+.test-case-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: #18212f;
+  margin-bottom: 0.5rem;
+}
+
+.test-case-detail.passed .test-case-title {
+  color: #15803d;
+}
+
+.test-case-detail.failed .test-case-title {
+  color: #680404;
+}
+
 .check-result p {
   white-space: pre-wrap;
   margin: 0;
@@ -985,16 +1032,11 @@ h4 {
   background: #fff5f5;
 }
 
-.test-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
 
 .test-stats span {
   padding: 4px 7px;
   border-radius: 999px;
-  background: #ffffff;
+  /* background: #ffffff; */
   color: #475569;
   font-size: 12px;
   font-weight: 700;
@@ -1126,7 +1168,7 @@ h4 {
 .author-assistant-panel {
   position: sticky;
   top: 86px;
-  max-height: calc(100vh - 112px);
+  max-height: calc(100vh - 212px);
   overflow: auto;
   padding: 14px;
 }
@@ -1202,12 +1244,22 @@ h4 {
 }
 
 .author-lesson-bar {
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) 110px auto;
-  align-items: end;
+  grid-template-columns: minmax(200px, 5fr) 5fr;
+  margin-top: 8px;
+  align-items: start;
+  gap: 2rem;
 }
 
 .author-lesson-bar .author-panel-header {
   align-self: center;
+  min-width: 0;
+}
+
+.author-lesson-bar .author-panel-header h2 {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  margin: 0;
 }
 
 .author-lesson-bar label,
@@ -1268,7 +1320,7 @@ h4 {
   padding: 12px;
   border: 1px solid #dbe4f0;
   border-radius: 8px;
-  background: #f8fafc;
+  background: #eef6ff;
 }
 
 .attachment-manager-header {
@@ -1302,7 +1354,7 @@ h4 {
 .attachment-item a {
   min-width: 0;
   overflow: hidden;
-  color: #0b63f6;
+  color: #2c5497;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1313,8 +1365,9 @@ h4 {
 }
 
 .author-create-block {
-  grid-template-columns: auto minmax(220px, 1fr) minmax(180px, 1fr) auto;
-  align-items: end;
+  grid-template-columns: minmax(200px, 5fr) 5fr;
+  align-items: start;
+  gap: 2rem;
 }
 
 .block-type-picker {
@@ -1371,7 +1424,6 @@ h4 {
 
 .author-block-list button {
   display: grid;
-  grid-template-columns: 1fr auto;
   gap: 6px;
   width: 100%;
   min-width: 0;
@@ -1477,11 +1529,10 @@ h4 {
 .author-assistant-panel .chat-history {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
   overflow-y: auto;
   min-height: 330px;
   max-height: calc(100vh - 500px);
-  padding: 1rem 0;
+  padding-top: 1rem;
 }
 
 .author-assistant-placeholder {
@@ -1678,4 +1729,23 @@ h4 {
 .profile-password-settings h2 {
   margin: 0;
   font-size: 1.15rem;
+}
+
+/* Custom scrollbar for author content textarea */
+.author-content-field textarea::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.author-content-field textarea::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.author-content-field textarea::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.author-content-field textarea::-webkit-scrollbar-track {
+  background: transparent;
 }

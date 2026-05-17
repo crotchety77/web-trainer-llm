@@ -41,10 +41,12 @@ export default function AppLayout({ title, subtitle, user, onLogout, children })
       </header>
 
       <main className="page-shell">
-        <section className="page-hero">
-          <h1>{title}</h1>
-          {subtitle ? <p className="muted">{subtitle}</p> : null}
-        </section>
+        {title || subtitle ? (
+          <section className="page-hero">
+            {title ? <h1>{title}</h1> : null}
+            {subtitle ? <p className="muted">{subtitle}</p> : null}
+          </section>
+        ) : null}
         {children}
       </main>
     </div>

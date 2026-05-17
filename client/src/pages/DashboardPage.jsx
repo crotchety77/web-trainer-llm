@@ -237,10 +237,6 @@ export default function DashboardPage() {
                     : "Студент"}
               </strong>
             </div>
-            <div>
-              <span className="profile-label">API URL</span>
-              <strong>{getApiUrl()}</strong>
-            </div>
           </div>
         ) : null}
 

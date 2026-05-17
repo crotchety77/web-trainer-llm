@@ -1,4 +1,5 @@
 import CodeEditor from "./CodeEditor";
+import CodeTaskTestResults from "./CodeTaskTestResults";
 
 export default function CodeTaskEditor({
   blockId,
@@ -69,7 +70,7 @@ export default function CodeTaskEditor({
 
       <div className="quiz-options-list" style={{ marginBottom: "2rem" }}>
         <span style={{ display: "block", marginBottom: "0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--text-muted, #64748b)" }}>Test Benches (Тест-кейсы)</span>
-        <p style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: "1rem" }}>Добавьте входные данные (stdin) и ожидаемый вывод (stdout). Важно точное совпадение!</p>
+        <p style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: "1rem" }}>Добавьте входные данные (stdin) и ожидаемый вывод (stdout).</p>
         {testCases.map((tc, idx) => (
           <div
             key={idx}
@@ -114,10 +115,18 @@ export default function CodeTaskEditor({
                 style={{ padding: "0.5rem", borderRadius: "4px", border: "1px solid #cbd5e1", width: "100%", resize: "vertical" }}
               />
             </label>
-            <button type="button" className="secondary-button" onClick={() => {
-              const newTestCases = testCases.filter((_, i) => i !== idx);
-              updateQuizData({ ...quizData, task_type: "code", test_cases: newTestCases });
-            }} style={{ padding: "0.5rem", color: "var(--error-color, #ef4444)", borderColor: "#e2e8f0" }} title="Удалить тест-кейс">✕</button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                const newTestCases = testCases.filter((_, i) => i !== idx);
+                updateQuizData({ ...quizData, task_type: "code", test_cases: newTestCases });
+              }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.5rem", color: "var(--error-color, #ef4444)", borderColor: "#e2e8f0" }}
+              title="Удалить тест-кейс"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            </button>
           </div>
         ))}
         <button type="button" className="secondary-button" onClick={() => {
@@ -152,42 +161,7 @@ export default function CodeTaskEditor({
 
         {authorTestResults && (
           <div style={{ marginTop: "1rem" }}>
-            <div className={`check-result ${authorTestResults.status === "passed" || authorTestResults.status === "accepted" ? "success-result" : "error-result"}`} style={{ padding: "1rem", borderRadius: "6px", border: "1px solid", borderColor: authorTestResults.status === "passed" || authorTestResults.status === "accepted" ? "#86efac" : "#fca5a5", background: authorTestResults.status === "passed" || authorTestResults.status === "accepted" ? "#f0fdf4" : "#fef2f2" }}>
-              <span style={{ fontWeight: "bold", color: authorTestResults.status === "passed" || authorTestResults.status === "accepted" ? "#166534" : "#991b1b" }}>{authorTestResults.status || "Результат"}</span>
-              <p style={{ margin: "0.5rem 0", color: authorTestResults.status === "passed" || authorTestResults.status === "accepted" ? "#15803d" : "#b91c1c" }}>{authorTestResults.result_message}</p>
-              {authorTestResults.tests_result ? (
-                <div className="test-stats" style={{ marginTop: "1rem" }}>
-                  <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", fontSize: "0.85rem", fontWeight: "bold" }}>
-                    <span>Всего: {authorTestResults.tests_result.total}</span>
-                    <span style={{ color: "#10b981" }}>Успешно: {authorTestResults.tests_result.passed}</span>
-                    <span style={{ color: "#ef4444" }}>Упало: {authorTestResults.tests_result.failed}</span>
-                  </div>
-
-                  {(authorTestResults.tests_result.details || []).map((detail, idx) => (
-                    <div key={idx} style={{ marginBottom: "0.5rem", padding: "0.75rem", border: "1px solid #e2e8f0", borderRadius: "4px", background: detail.passed ? "#f0fdf4" : "#fff" }}>
-                      <div style={{ fontWeight: "bold", marginBottom: "0.5rem", fontSize: "0.85rem", color: detail.passed ? "#15803d" : "#b91c1c" }}>
-                        Тест #{idx + 1} {detail.passed ? "✓ Пройден" : "✗ Упал"}
-                      </div>
-                      {!detail.passed && (
-                        <div style={{ fontSize: "0.8rem", display: "grid", gap: "0.5rem" }}>
-                          <div><strong style={{ color: "#64748b" }}>Ввод (stdin):</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: "4px" }}>{detail.input}</pre></div>
-                          <div><strong style={{ color: "#64748b" }}>Ожидалось (stdout):</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: "4px" }}>{detail.expected}</pre></div>
-                          <div><strong style={{ color: "#64748b" }}>Реальный вывод:</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: "4px", color: "#b91c1c" }}>{detail.actual}</pre></div>
-                        </div>
-                      )}
-                      
-                      {/* --- РАЗДЕЛ ДЕБАГА ДЛЯ АВТОРА --- */}
-                      <div style={{ marginTop: "0.75rem", padding: "0.5rem", background: "#1e293b", color: "#e2e8f0", borderRadius: "4px", fontSize: "0.75rem", fontFamily: "monospace" }}>
-                         <strong style={{ color: "#94a3b8", display: "block", marginBottom: "0.5rem", fontFamily: "sans-serif" }}>🛠 Дебаг (Сырой лог Piston):</strong>
-                         {detail.raw_stdout && <div style={{ marginBottom: "0.5rem" }}><span style={{ color: "#4ade80", fontWeight: "bold" }}>[STDOUT]</span><br/><pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{detail.raw_stdout}</pre></div>}
-                         {detail.raw_stderr && <div><span style={{ color: "#f87171", fontWeight: "bold" }}>[STDERR]</span><br/><pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{detail.raw_stderr}</pre></div>}
-                         {!detail.raw_stdout && !detail.raw_stderr && <span style={{ color: "#64748b" }}>Вывод абсолютно пуст. Возможно, функция ничего не возвращает или не была вызвана.</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            <CodeTaskTestResults results={authorTestResults} isAuthor={true} />
           </div>
         )}
       </div>

@@ -129,15 +129,15 @@ export default function AuthorCourseEditorPage() {
     try {
       const response = isNew
         ? await apiRequest("/api/courses", {
-            method: "POST",
-            headers: getAuthHeaders(),
-            body: JSON.stringify(payload)
-          })
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        })
         : await apiRequest(`/api/courses/${params.id}`, {
-            method: "PATCH",
-            headers: getAuthHeaders(),
-            body: JSON.stringify(payload)
-          });
+          method: "PATCH",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
 
       const savedCourse = response.course;
       setCourseId(savedCourse.id);
@@ -196,11 +196,11 @@ export default function AuthorCourseEditorPage() {
         <section className="panel">
           <div className="action-row">
             <Link className="secondary-link-button" to="/author/dashboard">
-              Назад в панель
+              Назад
             </Link>
             {!isNew && courseId ? (
               <Link className="primary-link-button" to={`/author/courses/${courseId}/content`}>
-                Редактировать контент
+                Содержимое курса
               </Link>
             ) : null}
           </div>
@@ -286,8 +286,8 @@ export default function AuthorCourseEditorPage() {
               chatMessages.map((msg, index) => (
                 <div key={index} className={`chat-message ${msg.role}`} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", background: msg.role === "user" ? "var(--surface-color, #f1f5f9)" : "var(--primary-light, #e0f2fe)", padding: "0.75rem", borderRadius: "8px", maxWidth: "90%", marginRight: msg.role === "user" ? "0.5rem" : "0" }}>
                   {msg.role === "user" && (
-                  <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{user?.name || "You"}</strong>
-                )}
+                    <strong style={{ fontSize: "0.8rem", color: "var(--text-muted, #64748b)" }}>{user?.name || "You"}</strong>
+                  )}
                   {msg.role === "assistant" ? (
                     <div className="markdown-content" style={{ paddingTop: "0.25rem", fontSize: "0.95rem" }}>
                       <ReactMarkdown>{msg.text}</ReactMarkdown>
@@ -303,8 +303,8 @@ export default function AuthorCourseEditorPage() {
             ) : null}
             {chatMessages.length > 0 && (
               <div style={{ textAlign: "right", paddingRight: "0.5rem", marginTop: "-0.75rem" }}>
-                <span 
-                  className="chat-clear-label" 
+                <span
+                  className="chat-clear-label"
                   onClick={() => setChatMessages([])}
                   title="Очистить историю сообщений"
                 >

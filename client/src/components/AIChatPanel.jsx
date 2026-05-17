@@ -39,7 +39,7 @@ export default function AIChatPanel({
               padding: "0.45rem 0.55rem",
               borderRadius: "8px",
               border: "1px solid var(--border-color, #cbd5e1)",
-              background: activeMode === mode.id ? "var(--primary-color, #0284c7)" : "transparent",
+              background: activeMode === mode.id ? "var(--primary-color, #0b63f6)" : "transparent",
               color: activeMode === mode.id ? "#fff" : (isAssistantAvailable ? "inherit" : "var(--text-muted, #94a3b8)"),
               cursor: isAssistantAvailable ? "pointer" : "not-allowed",
               whiteSpace: "normal",
@@ -51,13 +51,12 @@ export default function AIChatPanel({
         ))}
       </div>
 
-      <div className="chat-history" style={{ 
-        flex: "1 1 auto", 
-        overflowY: "auto", 
-        padding: "1rem 0", 
-        display: "flex", 
-        flexDirection: "column", 
-        gap: "1rem",
+      <div className="chat-history" style={{
+        flex: "1 1 auto",
+        overflowY: "auto",
+        paddingTop: "1rem",
+        display: "flex",
+        flexDirection: "column",
         minHeight: 0 // Важно для корректного скролла внутри flex-контейнера
       }}>
         {messages.length === 0 ? (
@@ -87,8 +86,8 @@ export default function AIChatPanel({
         {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Печатает...</div>}
         {messages.length > 0 && (
           <div style={{ textAlign: "right", paddingRight: "0.5rem", marginTop: "-0.75rem" }}>
-            <span 
-              className="chat-clear-label" 
+            <span
+              className="chat-clear-label"
               onClick={onClearHistory}
               title="Очистить историю сообщений"
               style={{ cursor: "pointer", fontSize: "0.75rem", color: "var(--text-muted, #64748b)", textDecoration: "underline" }}
@@ -115,7 +114,7 @@ export default function AIChatPanel({
             value={chatInput}
             onChange={setChatInput}
             onSubmit={onSendMessage}
-            placeholder={isAssistantAvailable ? (activeMode ? "Введите ваш вопрос..." : "Напишите сообщение или выберите режим...") : "Чат недоступен. Добавьте API ключ и Folder ID."}
+            placeholder={isAssistantAvailable ? (activeMode ? "Введите ваш запрос..." : "Напишите сообщение или выберите режим...") : "Чат недоступен. Добавьте API ключ и Folder ID."}
             disabled={isChatLoading || !isAssistantAvailable}
           />
           <button type="submit" className="secondary-button" disabled={isChatLoading || !chatInput.trim() || !isAssistantAvailable}>

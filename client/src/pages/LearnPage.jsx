@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import CodeEditor from "../components/CodeEditor";
+import CodeTaskTestResults from "../components/CodeTaskTestResults";
 import AIChatPanel from "../components/AIChatPanel";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest, getApiUrl } from "../lib/api";
@@ -442,7 +443,7 @@ export default function LearnPage() {
                         </div>
                         <div className="block-copy">
                           <h3>{block.title}</h3>
-                          <p>{block.content}</p>
+                          <p style={{ whiteSpace: "pre-wrap" }}>{block.content}</p>
                           {block.type === "lecture" && getBlockAttachments(block.attachment_url).length ? (
                             <div className="lecture-attachments">
                               {getBlockAttachments(block.attachment_url).map((attachment) => (
@@ -554,39 +555,9 @@ export default function LearnPage() {
                                   <p className="result-text-error">{blockState.error}</p>
                                 </div>
                               ) : null}
-                              {blockState.submission ? (
-                                <div className={`check-result ${blockState.submission.status === "passed" || blockState.submission.status === "accepted" ? "success-result" : "error-result"}`}>
-                                  <span>{blockState.submission.status || "Результат"}</span>
-                                  <p className={blockState.submission.status === "passed" || blockState.submission.status === "accepted" ? "result-text-success" : "result-text-error"}>{blockState.submission.result_message}</p>
-                                  {blockState.submission.tests_result ? (
-                                    <div className="test-stats" style={{ marginTop: "1rem" }}>
-                                      <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", fontWeight: "bold" }}>
-                                        <span>Всего: {blockState.submission.tests_result.total}</span>
-                                        <span style={{ color: "#10b981" }}>Успешно: {blockState.submission.tests_result.passed}</span>
-                                        <span style={{ color: "#ef4444" }}>Упало: {blockState.submission.tests_result.failed}</span>
-                                      </div>
-
-                                      {(blockState.submission.tests_result.details || []).map((detail, idx) => (
-                                        <div key={idx} style={{ marginBottom: "0.5rem", padding: "0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", background: detail.passed ? "#f0fdf4" : "#fef2f2" }}>
-                                          <div style={{ fontWeight: "bold", marginBottom: "0.5rem", color: detail.passed ? "#15803d" : "#b91c1c" }}>
-                                            Тест #{idx + 1} {detail.passed ? "✓ Пройден" : "✗ Упал"}
-                                          </div>
-                                          {!detail.passed && !detail.is_hidden && (
-                                            <div style={{ fontSize: "0.85rem", display: "grid", gap: "0.5rem" }}>
-                                              <div><strong style={{ color: "#64748b" }}>Ввод (stdin):</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px" }}>{detail.input}</pre></div>
-                                              <div><strong style={{ color: "#64748b" }}>Ожидалось (stdout):</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px" }}>{detail.expected}</pre></div>
-                                              <div><strong style={{ color: "#64748b" }}>Ваш вывод:</strong><pre style={{ margin: 0, padding: "0.25rem", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px", color: "#b91c1c" }}>{detail.actual}</pre></div>
-                                            </div>
-                                          )}
-                                          {!detail.passed && detail.is_hidden && (
-                                            <div style={{ fontSize: "0.85rem", color: "#64748b" }}>Скрытый тест. Детали не отображаются.</div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              ) : null}
+                              {blockState.submission && (
+                                <CodeTaskTestResults results={blockState.submission} isAuthor={false} />
+                              )}
                               {!blockState.error && !blockState.submission && !blockState.submitting ? (
                                 <p className="helper-text">Запустите проверку, когда решение будет готово.</p>
                               ) : null}

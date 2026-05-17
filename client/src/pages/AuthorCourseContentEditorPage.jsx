@@ -332,10 +332,12 @@ export default function AuthorCourseContentEditorPage() {
     }
   }
 
-  async function handleLessonDelete() {
-    if (!selectedLesson) return;
-    if (pendingDelete?.type !== "lesson" || pendingDelete.id !== selectedLesson.id) {
-      setPendingDelete({ type: "lesson", id: selectedLesson.id });
+  async function handleLessonDelete(lessonId = null) {
+    const targetId = lessonId || selectedLesson?.id;
+    if (!targetId) return;
+
+    if (pendingDelete?.type !== "lesson" || pendingDelete.id !== targetId) {
+      setPendingDelete({ type: "lesson", id: targetId });
       toast.warning("Нажмите удалить ещё раз, чтобы подтвердить");
       return;
     }
@@ -343,13 +345,15 @@ export default function AuthorCourseContentEditorPage() {
     setPendingDelete(null);
 
     try {
-      await apiRequest(`/api/lessons/${selectedLesson.id}`, {
+      await apiRequest(`/api/lessons/${targetId}`, {
         method: "DELETE",
         headers: getAuthHeaders()
       });
 
-      setLessons((current) => current.filter((l) => l.id !== selectedLesson.id));
-      setSelectedLessonId(null);
+      setLessons((current) => current.filter((l) => l.id !== targetId));
+      if (selectedLessonId === targetId) {
+        setSelectedLessonId(null);
+      }
       toast.success("Урок удалён");
     } catch (requestError) {
       toast.error("Не удалось удалить урок");
@@ -505,7 +509,25 @@ export default function AuthorCourseContentEditorPage() {
 
   async function handleAuthorTestSubmit(blockId) {
     const draft = blockDrafts[blockId];
-    if (!draft || !draft.quiz_data || !authorTestCode[blockId]) return;
+    if (!draft || !draft.quiz_data) {
+      toast.error("Ошибка: Данные интерактивного задания не инициализированы.");
+      return;
+    }
+
+    const codeToRun = authorTestCode[blockId] !== undefined
+      ? authorTestCode[blockId]
+      : (draft.quiz_data.placeholder_code || "");
+
+    if (!codeToRun || !codeToRun.trim()) {
+      toast.warning("Пожалуйста, напишите или отредактируйте код решения перед запуском тестов!");
+      return;
+    }
+
+    const testCases = draft.quiz_data.test_cases || [];
+    if (testCases.length === 0) {
+      toast.warning("Добавьте хотя бы один тест-кейс в настройках задания перед проверкой.");
+      return;
+    }
 
     setIsTestingCode((prev) => ({ ...prev, [blockId]: true }));
     setAuthorTestResults((prev) => ({ ...prev, [blockId]: null }));
@@ -516,8 +538,8 @@ export default function AuthorCourseContentEditorPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify({
           language: draft.quiz_data.language || "javascript",
-          code: authorTestCode[blockId],
-          test_cases: draft.quiz_data.test_cases || [],
+          code: codeToRun,
+          test_cases: testCases,
           function_name: draft.quiz_data.function_name || ""
         })
       });
@@ -526,7 +548,7 @@ export default function AuthorCourseContentEditorPage() {
       if (["passed", "accepted"].includes(response.status)) {
         toast.success("Тесты успешно пройдены");
       } else {
-        toast.error("Тесты не пройдены");
+        toast.error("Тесты не пройдены: проверьте сообщения об ошибках");
       }
     } catch (err) {
       setAuthorTestResults((prev) => ({
@@ -537,7 +559,7 @@ export default function AuthorCourseContentEditorPage() {
           tests_result: null
         }
       }));
-      toast.error("Ошибка выполнения кода");
+      toast.error(`Ошибка при проверке кода: ${err.message || "Не удалось отправить запрос"}`);
     } finally {
       setIsTestingCode((prev) => ({ ...prev, [blockId]: false }));
     }
@@ -688,11 +710,11 @@ export default function AuthorCourseContentEditorPage() {
         blockDrafts,
         authorTestCode
       });
-      
+
       const editorContext = lessonDetail
         ? `Автор редактирует урок: "${lessonDetail.title}".\n\n${summaryContext}`
         : "Автор пока не выбрал урок.";
-      
+
       console.log("[ChatRequest]", { userInput: userText, mode: activeMode, stepsContext });
 
       const response = await apiRequest("/api/ai/chat", {
@@ -720,17 +742,18 @@ export default function AuthorCourseContentEditorPage() {
 
   return (
     <AppLayout
-      title={courseTitle}
       user={user}
       onLogout={handleLogout}
     >
-      <div className="author-content-actions">
-        <Link className="secondary-link-button" to={`/author/courses/${params.id}/edit`}>
-          На страницу курса
-        </Link>
+
+      <div className="author-content-actions" style={{ paddingTop: "1rem" }}>
         <Link className="secondary-link-button" to="/author/dashboard">
-          Назад в панель
+          Назад
         </Link>
+        <Link className="secondary-link-button" to={`/author/courses/${params.id}/edit`}>
+          Редактировать визитку курса
+        </Link>
+
       </div>
 
       {loading ? <p>Загрузка контента курса...</p> : null}
@@ -749,6 +772,7 @@ export default function AuthorCourseContentEditorPage() {
 
                 return (
                   <button
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", overflow: "hidden", gap: "4px", paddingRight: "4px" }}
                     key={lesson.id}
                     type="button"
                     draggable
@@ -789,10 +813,71 @@ export default function AuthorCourseContentEditorPage() {
                     }}
                     onClick={() => setSelectedLessonId(lesson.id)}
                   >
-                    <span className="lesson-number">{displayPosition}</span>
-                    <strong>
-                      {lesson.title}
-                    </strong>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden", minWidth: 0, flex: 1 }}>
+                      <span className="lesson-number">{displayPosition}</span>
+                      <strong
+                        style={{
+                          textOverflow: "ellipsis",
+                          overflow: "hidden",
+                          whiteSpace: "nowrap",
+                          display: "inline-block",
+                          flex: 1,
+                          textAlign: "left"
+                        }}
+                        title={lesson.title}
+                      >
+                        {lesson.title}
+                      </strong>
+                    </div>
+                    {(() => {
+                      const isPendingConfirm = pendingDelete?.type === "lesson" && pendingDelete.id === lesson.id;
+                      return (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          className="lesson-delete-icon-btn"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleLessonDelete(lesson.id);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.stopPropagation();
+                              handleLessonDelete(lesson.id);
+                            }
+                          }}
+                          style={{
+                            background: isPendingConfirm ? "#fee2e2" : "none",
+                            border: "none",
+                            padding: "6px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: isPendingConfirm ? "#ef4444" : "#94a3b8",
+                            borderRadius: "6px",
+                            transition: "color 0.2s, background-color 0.2s",
+                            marginLeft: "auto",
+                            flexShrink: 0
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isPendingConfirm) {
+                              e.currentTarget.style.color = "#ef4444";
+                              e.currentTarget.style.background = "#fee2e2";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isPendingConfirm) {
+                              e.currentTarget.style.color = "#94a3b8";
+                              e.currentTarget.style.background = "none";
+                            }
+                          }}
+                          title={isPendingConfirm ? "Нажмите еще раз для подтверждения" : "Удалить урок"}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </span>
+                      );
+                    })()}
                   </button>
                 );
               })}
@@ -801,8 +886,8 @@ export default function AuthorCourseContentEditorPage() {
             <form className="author-create-lesson form compact-form" onSubmit={handleLessonCreate}>
               <h3>Добавить урок</h3>
               <label>
-                <span>Название</span>
                 <input
+                  placeholder="Название"
                   value={createLessonForm.title}
                   onChange={(event) =>
                     setCreateLessonForm((current) => ({ ...current, title: event.target.value }))
@@ -822,68 +907,53 @@ export default function AuthorCourseContentEditorPage() {
                     <span className="eyebrow">Выбранный урок</span>
                     <h2>{selectedLesson.title}</h2>
                   </div>
-                  <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}>
+                  <div className="author-panel-name" style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}>
                     <label style={{ flex: 1, marginBottom: 0 }}>
-                      <span style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.85rem", fontWeight: "600" }}>Название</span>
+                      <span style={{ display: "block", marginBottom: "0.25rem" }}>Редактировать название урока</span>
                       <input
                         value={lessonForm.title}
                         onChange={(event) =>
                           setLessonForm((current) => ({ ...current, title: event.target.value }))
                         }
                         required
-                        style={{ width: "100%" }}
+                        style={{ width: "100%", minWidth: "200px" }}
                       />
                     </label>
-                    <button type="submit" style={{ height: "fit-content" }}>Сохранить урок</button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={handleLessonDelete}
-                      style={{ height: "fit-content", backgroundColor: "#ec4899", color: "#fff", borderColor: "#ec4899" }}
-                      title="Удалить урок со всеми блоками"
-                    >
-                      Удалить
-                    </button>
+                    <button type="submit" style={{ height: "fit-content" }}>Сохранить</button>
                   </div>
                 </form>
 
                 <form className="author-create-block" onSubmit={handleNewBlockCreate}>
-                  <div className="block-type-picker" role="group" aria-label="New block type">
-                    {["lecture", "practice", "test"].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        className={newBlockForm.type === type ? "active" : ""}
-                        onClick={() => setNewBlockForm((current) => ({ ...current, type }))}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                  <div>
+                    <span style={{ display: "block", marginBottom: "10px", fontSize: "13px", fontWeight: "700", color: "var(--text-muted, #475569)" }}>Тип блока</span>
+                    <div className="block-type-picker" role="group" aria-label="New block type">
+                      {["lecture", "practice", "test"].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          className={newBlockForm.type === type ? "active" : ""}
+                          onClick={() => setNewBlockForm((current) => ({ ...current, type }))}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <label>
-                    <span>Название нового блока</span>
-                    <input
-                      value={newBlockForm.title}
-                      onChange={(event) =>
-                        setNewBlockForm((current) => ({ ...current, title: event.target.value }))
-                      }
-                      placeholder="Название задания"
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span>URL вложения</span>
-                    <input
-                      value={newBlockForm.attachment_url}
-                      onChange={(event) =>
-                        setNewBlockForm((current) => ({
-                          ...current,
-                          attachment_url: event.target.value
-                        }))
-                      }
-                    />
-                  </label>
-                  <button type="submit">Добавить блок</button>
+                  <div className="author-panel-name" style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}>
+                    <label style={{ flex: 1, marginBottom: 0 }}>
+                      <span style={{ display: "block", marginBottom: "0.25rem" }}>Создание нового блока</span>
+                      <input
+                        value={newBlockForm.title}
+                        onChange={(event) =>
+                          setNewBlockForm((current) => ({ ...current, title: event.target.value }))
+                        }
+                        placeholder="Название нового блока"
+                        required
+                        style={{ width: "100%", minWidth: "200px" }}
+                      />
+                    </label>
+                    <button type="submit" style={{ height: "fit-content", whiteSpace: "nowrap" }}>Добавить блок</button>
+                  </div>
                 </form>
 
                 <div className="author-block-area">
@@ -930,9 +1000,63 @@ export default function AuthorCourseContentEditorPage() {
                           }}
                           onClick={() => setActiveBlockId(block.id)}
                         >
-                          <span className="tag-chip">{blockDrafts[block.id]?.type || block.type}</span>
-                          <strong>{blockDrafts[block.id]?.title || block.title}</strong>
-                          <span>#{index + 1}</span>
+                          <span className="tag-chip" style={{ alignSelf: "center", height: "fit-content", width: "fit-content" }}>
+                            {blockDrafts[block.id]?.type || block.type}
+                          </span>
+                          <strong>
+                            {blockDrafts[block.id]?.title || block.title}
+                          </strong>
+                          <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem", flexShrink: 0 }}>#{index + 1}</span>
+                            {(() => {
+                              const isPendingConfirm = pendingDelete?.type === "block" && pendingDelete.id === block.id;
+                              return (
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  className="block-delete-icon-btn"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleBlockDelete(block.id);
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                      event.stopPropagation();
+                                      handleBlockDelete(block.id);
+                                    }
+                                  }}
+                                  style={{
+                                    background: isPendingConfirm ? "#fee2e2" : "none",
+                                    border: "none",
+                                    padding: "6px",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: isPendingConfirm ? "#ef4444" : "#94a3b8",
+                                    borderRadius: "6px",
+                                    transition: "color 0.2s, background-color 0.2s",
+                                    flexShrink: 0
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!isPendingConfirm) {
+                                      e.currentTarget.style.color = "#ef4444";
+                                      e.currentTarget.style.background = "#fee2e2";
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!isPendingConfirm) {
+                                      e.currentTarget.style.color = "#94a3b8";
+                                      e.currentTarget.style.background = "none";
+                                    }
+                                  }}
+                                  title={isPendingConfirm ? "Нажмите еще раз для подтверждения" : "Удалить блок"}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                </span>
+                              );
+                            })()}
+                          </span>
                         </button>
                       ))
                     ) : (
@@ -976,16 +1100,18 @@ export default function AuthorCourseContentEditorPage() {
                             onChange={(event) => updateBlockDraft(selectedBlock.id, "title", event.target.value)}
                           />
                         </label>
-                        <label>
-                          <span>URL вложения</span>
-                          <input
-                            value={blockDrafts[selectedBlock.id]?.attachment_url || ""}
-                            onChange={(event) =>
-                              updateBlockDraft(selectedBlock.id, "attachment_url", event.target.value)
-                            }
-                          />
-                        </label>
                       </div>
+
+
+
+                      <label className="author-content-field">
+                        <span>Контент</span>
+                        <textarea
+                          rows="14"
+                          value={blockDrafts[selectedBlock.id]?.content || ""}
+                          onChange={(event) => updateBlockDraft(selectedBlock.id, "content", event.target.value)}
+                        />
+                      </label>
 
                       {blockDrafts[selectedBlock.id]?.type === "lecture" && (
                         <div className="attachment-manager">
@@ -1025,15 +1151,6 @@ export default function AuthorCourseContentEditorPage() {
                           </div>
                         </div>
                       )}
-
-                      <label className="author-content-field">
-                        <span>Контент</span>
-                        <textarea
-                          rows="14"
-                          value={blockDrafts[selectedBlock.id]?.content || ""}
-                          onChange={(event) => updateBlockDraft(selectedBlock.id, "content", event.target.value)}
-                        />
-                      </label>
 
                       {blockDrafts[selectedBlock.id]?.type === "test" && (
                         <div className="author-quiz-editor" style={{ marginTop: "1rem", padding: "1.5rem", border: "1px solid var(--border-color, #cbd5e1)", borderRadius: "8px", background: "#fff" }}>
@@ -1136,19 +1253,28 @@ export default function AuthorCourseContentEditorPage() {
                                 />
                                 <input
                                   type="text"
-                                  placeholder="Подсказка (если выберут ошибку)"
-                                  value={opt.hint || ""}
+                                  placeholder={opt.is_correct ? "" : "Подсказка"}
+                                  value={opt.is_correct ? "" : (opt.hint || "")}
+                                  disabled={!!opt.is_correct}
                                   onChange={(e) => {
                                     const newOptions = [...(blockDrafts[selectedBlock.id]?.quiz_data?.options || [])];
                                     newOptions[idx].hint = e.target.value;
                                     updateBlockDraft(selectedBlock.id, "quiz_data", { ...(blockDrafts[selectedBlock.id]?.quiz_data || {}), options: newOptions });
                                   }}
-                                  style={{ padding: "0.5rem", borderRadius: "4px", border: "1px solid #cbd5e1", width: "100%" }}
+                                  style={{
+                                    padding: "0.5rem",
+                                    borderRadius: "4px",
+                                    border: "1px solid #cbd5e1",
+                                    width: "100%",
+                                    background: opt.is_correct ? "#f1f5f9" : "#fff",
+                                    cursor: opt.is_correct ? "not-allowed" : "text",
+                                    color: opt.is_correct ? "#94a3b8" : "inherit"
+                                  }}
                                 />
                                 <button type="button" className="secondary-button" onClick={() => {
                                   const newOptions = blockDrafts[selectedBlock.id].quiz_data.options.filter((_, i) => i !== idx);
                                   updateBlockDraft(selectedBlock.id, "quiz_data", { ...(blockDrafts[selectedBlock.id]?.quiz_data || {}), options: newOptions });
-                                }} style={{ padding: "0.5rem", color: "var(--error-color, #ef4444)", borderColor: "#e2e8f0" }} title="Удалить вариант">✕</button>
+                                }} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.5rem", color: "var(--error-color, #ef4444)", borderColor: "#e2e8f0" }} title="Удалить вариант"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
                               </div>
                             ))}
                             <button type="button" className="secondary-button" onClick={() => {
@@ -1175,22 +1301,8 @@ export default function AuthorCourseContentEditorPage() {
                           isTestingCode={isTestingCode[selectedBlock.id]}
                         />
                       )}
-
-                      <div className="action-row" style={{ marginTop: "1.5rem" }}>
-                        <button
-                          type="submit"
-                        >
-                          Сохранить изменения
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => handleBlockDelete(selectedBlock.id)}
-                          style={{ backgroundColor: "#ec4899", color: "#fff", borderColor: "#ec4899" }}
-                          title="Удалить блок"
-                        >
-                          Удалить
-                        </button>
+                      <div className="action-row" style={{ justifyContent: "flex-end" }}>
+                        <button type="submit">Сохранить изменения</button>
                       </div>
                     </form>
                   ) : null}
@@ -1221,7 +1333,8 @@ export default function AuthorCourseContentEditorPage() {
             chatEndRef={chatEndRef}
           />
         </section>
-      ) : null}
-    </AppLayout>
+      ) : null
+      }
+    </AppLayout >
   );
 }

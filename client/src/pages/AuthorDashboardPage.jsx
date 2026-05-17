@@ -71,17 +71,17 @@ export default function AuthorDashboardPage() {
             <article key={course.id} className="course-card compact">
               <div className="course-card-body">
                 <div className="meta-row">
-                  <span>{course.is_published ? "Опубликован" : "Черновик"}</span>
+                  <span style={{ textDecoration: course.is_published ? "underline" : "none" }}>{course.is_published ? "Опубликован" : "Черновик"}</span>
                   <span>Уроков: {course.lessons_count}</span>
                 </div>
                 <h2>{course.title}</h2>
                 <p>{course.short_description}</p>
                 <div className="action-row">
-                  <Link className="primary-link-button" to={`/author/courses/${course.id}/edit`}>
-                    Редактировать страницу
+                  <Link className="secondary-link-button" to={`/author/courses/${course.id}/edit`}>
+                    Редактировать визитку курса
                   </Link>
-                  <Link className="secondary-link-button" to={`/author/courses/${course.id}/content`}>
-                    Редактировать контент
+                  <Link className="primary-link-button" to={`/author/courses/${course.id}/content`}>
+                    Содержимое курса
                   </Link>
                 </div>
               </div>
