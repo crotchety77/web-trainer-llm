@@ -383,6 +383,7 @@ export default function LearnPage() {
       title={lesson?.course_title || "Процесс обучения"}
       user={user}
       onLogout={handleLogout}
+      heroLink={`/courses/${courseId}`}
     >
       <section className="learn-page">
         {loading ? <p>Загрузка урока...</p> : null}

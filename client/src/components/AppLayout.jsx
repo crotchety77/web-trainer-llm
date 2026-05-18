@@ -1,7 +1,7 @@
 import { Link, NavLink } from "react-router-dom";
 import { clearToken } from "../lib/auth";
 
-export default function AppLayout({ title, subtitle, user, onLogout, children }) {
+export default function AppLayout({ title, subtitle, user, onLogout, children, heroLink }) {
   function handleLogout() {
     clearToken();
     if (onLogout) {
@@ -43,7 +43,17 @@ export default function AppLayout({ title, subtitle, user, onLogout, children })
       <main className="page-shell">
         {title || subtitle ? (
           <section className="page-hero">
-            {title ? <h1>{title}</h1> : null}
+            {title ? (
+              heroLink ? (
+                <h1>
+                  <Link to={heroLink} className="hero-link">
+                    {title}
+                  </Link>
+                </h1>
+              ) : (
+                <h1>{title}</h1>
+              )
+            ) : null}
             {subtitle ? <p className="muted">{subtitle}</p> : null}
           </section>
         ) : null}
