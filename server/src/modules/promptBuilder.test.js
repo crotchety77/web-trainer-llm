@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { normalizeMessages, selectSystemPrompt, buildPrompt, serializeStepsContext } from "./promptBuilder.js";
-import { SYSTEM_PROMPTS } from "../routes/templatesAi.js";
+import { SYSTEM_PROMPTS } from "./templatesAi.js";
 
 describe("promptBuilder module", () => {
   

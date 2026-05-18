@@ -1,4 +1,4 @@
-import { SYSTEM_PROMPTS } from "../routes/templatesAi.js";
+import { SYSTEM_PROMPTS } from "./templatesAi.js";
 
 
 /**

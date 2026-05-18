@@ -7,6 +7,9 @@ import { getAiStatus } from "./modules/ai.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import codeRoutes from "./routes/codeRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import studentCourseRoutes from "./routes/studentCourseRoutes.js";
+import attachmentRoutes from "./routes/attachmentRoutes.js";
+import lessonRoutes from "./routes/lessonRoutes.js";
 
 export const app = express();
 
@@ -82,6 +85,9 @@ app.get("/api/health", (request, response) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api", courseRoutes);
+app.use("/api", studentCourseRoutes);
+app.use("/api", attachmentRoutes);
+app.use("/api", lessonRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api", codeRoutes);
 app.use("/api/admin", adminRoutes);
