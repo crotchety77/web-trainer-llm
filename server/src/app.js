@@ -36,6 +36,7 @@ function isAllowedDevOrigin(origin) {
     return (
       hostname === "localhost" ||
       hostname === "127.0.0.1" ||
+      hostname.startsWith("26.") ||
       hostname.startsWith("10.") ||
       hostname.startsWith("192.168.") ||
       hostname.endsWith(".ngrok-free.dev") ||

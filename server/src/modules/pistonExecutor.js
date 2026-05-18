@@ -14,9 +14,11 @@ export async function initializePistonLanguages(retries = 5) {
     const response = await axios.get(`${pistonUrl}/api/v2/packages`);
     const installedPackages = response.data.filter(pkg => pkg.installed);
     const installedLangs = installedPackages.map(pkg => pkg.language);
+    let missingPackagesCount = 0;
 
     for (const reqPkg of REQUIRED_LANGUAGES) {
       if (!installedLangs.includes(reqPkg.language)) {
+        missingPackagesCount++;
         console.log(`[piston] Язык ${reqPkg.language} не установлен. Начинаю фоновую установку (это может занять время)...`);
 
         // Запускаем установку без await, чтобы не блокировать старт сервера
@@ -26,6 +28,10 @@ export async function initializePistonLanguages(retries = 5) {
       } else {
         if (retries === 5) console.log(`[piston] Язык ${reqPkg.language} уже установлен.`);
       }
+    }
+
+    if (missingPackagesCount === 0) {
+      console.log("[piston] Проверка языка завершена: все необходимые языки доступны.");
     }
   } catch (error) {
     if (retries > 0) {

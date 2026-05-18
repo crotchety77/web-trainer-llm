@@ -38,17 +38,19 @@ export default function CodeTaskTestResults({ results, isAuthor = false }) {
   }
 
   return (
-    <div className="code-task-results-wrapper" style={{ marginTop: "1rem" }}>
+    <div className="code-task-results-wrapper">
       {/* Компактный блок статуса выполнения */}
-      <div className={`check-result ${isSuccess ? "success-result" : "error-result"}`}>
-        <span className="result-status-title">{statusText}</span>
-        <p className={`result-message-text ${isSuccess ? "result-text-success" : "result-text-error"}`}>
-          {messageText}
-        </p>
-      </div>
+      {isAuthor ? (
+        <div className={`check-result ${isSuccess ? "success-result" : "error-result"}`}>
+          <span className="result-status-title">{statusText}</span>
+          <p className={`result-message-text ${isSuccess ? "result-text-success" : "result-text-error"}`}>
+            {messageText}
+          </p>
+        </div>
+      ) : null}
 
       {results.tests_result ? (
-        <div className="test-stats" style={{ marginTop: "1.25rem" }}>
+        <div className="test-stats">
           {/* Сводная статистика вынесена за пределы цветного контейнера статуса */}
           <div className="test-stats-summary" style={{ display: "flex", gap: "1rem", marginBottom: "1rem", fontWeight: "bold", alignItems: "start" }}>
             <span className="test-stat-item total" style={{ alignSelf: "center", height: "fit-content", width: "fit-content" }}>Всего: {results.tests_result.total}</span>

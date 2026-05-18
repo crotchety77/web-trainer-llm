@@ -57,7 +57,8 @@ export default function AIChatPanel({
         paddingTop: "1rem",
         display: "flex",
         flexDirection: "column",
-        minHeight: 0 // Важно для корректного скролла внутри flex-контейнера
+        minHeight: 0, // Важно для корректного скролла внутри flex-контейнера
+        gap: "6px"
       }}>
         {messages.length === 0 ? (
           <div className="assistant-placeholder">
@@ -85,12 +86,11 @@ export default function AIChatPanel({
         )}
         {isChatLoading && <div className="chat-message assistant" style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted, #64748b)" }}>Печатает...</div>}
         {messages.length > 0 && (
-          <div style={{ textAlign: "right", paddingRight: "0.5rem", marginTop: "-0.75rem" }}>
+          <div className="chat-clear-row">
             <span
               className="chat-clear-label"
               onClick={onClearHistory}
               title="Очистить историю сообщений"
-              style={{ cursor: "pointer", fontSize: "0.75rem", color: "var(--text-muted, #64748b)", textDecoration: "underline" }}
             >
               Очистить чат
             </span>

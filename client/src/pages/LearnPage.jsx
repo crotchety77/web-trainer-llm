@@ -532,13 +532,8 @@ export default function LearnPage() {
                                 value={solutions[block.id] !== undefined ? solutions[block.id] : (block.quiz_data?.placeholder_code || "")}
                                 onChange={(val) => handleSolutionChange(block.id, val)}
                                 language={block.quiz_data?.language || "javascript"}
-                                height={300}
+                                height={320}
                               />
-                              {block.quiz_data?.function_name && (
-                                <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "0.5rem", padding: "0.5rem", background: "#f8fafc", borderRadius: "4px" }}>
-                                  💡 <strong>Подсказка:</strong> Система автоматически прочитает ввод и вызовет вашу функцию <code>{block.quiz_data.function_name}</code> с нужными аргументами.
-                                </div>
-                              )}
                             </div>
 
                             <div className="submission-panel" aria-live="polite">
