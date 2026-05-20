@@ -58,7 +58,6 @@ export default function AIChatPanel({
         display: "flex",
         flexDirection: "column",
         minHeight: 0, // Важно для корректного скролла внутри flex-контейнера
-        gap: "6px"
       }}>
         {messages.length === 0 ? (
           <div className="assistant-placeholder">

@@ -10,7 +10,7 @@ import {
   requireRole
 } from "../middleware/authMiddleware.js";
 import {
-  ATTACHMENTS_DIR,
+  getCourseAttachmentsDir,
   MAX_ATTACHMENT_SIZE_BYTES,
   buildAttachmentDownloadUrl,
   parseAttachments,
@@ -75,11 +75,13 @@ router.post(
         return response.status(400).json({ message: "Attachments can be uploaded only for lecture blocks" });
       }
 
-      await fs.mkdir(ATTACHMENTS_DIR, { recursive: true });
+      const courseId = block.course_id;
+      const courseDir = getCourseAttachmentsDir(courseId);
+      await fs.mkdir(courseDir, { recursive: true });
 
       const extension = path.extname(request.file.originalname).toLowerCase();
       const storedName = `${crypto.randomUUID()}${extension}`;
-      const targetPath = path.join(ATTACHMENTS_DIR, storedName);
+      const targetPath = path.join(courseDir, storedName);
       await fs.writeFile(targetPath, request.file.buffer);
 
       const attachment = {
@@ -147,7 +149,8 @@ router.delete(
       ]);
 
       try {
-        await fs.unlink(path.join(ATTACHMENTS_DIR, storedName));
+        const courseId = block.course_id;
+        await fs.unlink(path.join(getCourseAttachmentsDir(courseId), storedName));
       } catch (fileError) {
         if (fileError.code !== "ENOENT") {
           throw fileError;
@@ -171,7 +174,7 @@ router.get("/attachments/:storedName", optionalAuthMiddleware, async (request, r
 
   try {
     const result = await pool.query(
-      `SELECT lb.attachment_url, c.author_id, c.is_published
+      `SELECT lb.attachment_url, c.author_id, c.is_published, c.id AS course_id
        FROM lesson_blocks lb
        JOIN lessons l ON l.id = lb.lesson_id
        JOIN courses c ON c.id = l.course_id
@@ -194,7 +197,8 @@ router.get("/attachments/:storedName", optionalAuthMiddleware, async (request, r
     const attachment = parseAttachments(matchedRow.attachment_url).find(
       (item) => item.stored_name === storedName
     );
-    const filePath = path.join(ATTACHMENTS_DIR, storedName);
+    const courseId = matchedRow.course_id;
+    const filePath = path.join(getCourseAttachmentsDir(courseId), storedName);
 
     return response.download(filePath, attachment.original_name || storedName);
   } catch (error) {

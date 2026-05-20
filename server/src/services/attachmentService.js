@@ -1,7 +1,10 @@
 import path from "path";
 
 export const MAX_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
-export const ATTACHMENTS_DIR = path.resolve(process.cwd(), "uploads", "lecture-attachments");
+
+export function getCourseAttachmentsDir(courseId) {
+  return path.resolve(process.cwd(), "uploads", "courses", String(courseId));
+}
 
 const ALLOWED_ATTACHMENT_TYPES = new Map([
   [".pdf", "application/pdf"],

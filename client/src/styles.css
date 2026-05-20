@@ -1590,6 +1590,10 @@ h4 {
   margin-top: 6px;
 }
 
+.assistant-panel .chat-message+.chat-message {
+  margin-top: 6px;
+}
+
 .author-assistant-placeholder {
   display: flex;
   align-items: center;
