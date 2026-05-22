@@ -121,9 +121,6 @@ export default function AuthorCourseEditorPage() {
     const payload = {
       ...courseForm,
       tags_json: courseForm.tags
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean)
     };
 
     try {

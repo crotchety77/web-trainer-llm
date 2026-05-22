@@ -20,20 +20,64 @@ import {
 const router = Router();
 
 function normalizeTags(input) {
+  let tags = [];
+
   if (Array.isArray(input)) {
-    return input
-      .map((item) => String(item).trim())
-      .filter(Boolean);
+    for (const item of input) {
+      const itemStr = String(item).trim();
+      if (!itemStr) continue;
+      
+      if (itemStr.includes("#") && !itemStr.includes(",")) {
+        const matches = [...itemStr.matchAll(/#([\p{L}\p{N}_-]+)/gu)];
+        if (matches.length > 0) {
+          tags.push(...matches.map((m) => m[1].trim()).filter(Boolean));
+          continue;
+        }
+      }
+      
+      if (itemStr.includes(",")) {
+        tags.push(...itemStr.split(",").map((t) => {
+          let cleaned = t.trim();
+          if (cleaned.startsWith("#")) {
+            cleaned = cleaned.substring(1).trim();
+          }
+          return cleaned;
+        }).filter(Boolean));
+        continue;
+      }
+      
+      let cleaned = itemStr;
+      if (cleaned.startsWith("#")) {
+        cleaned = cleaned.substring(1).trim();
+      }
+      if (cleaned) {
+        tags.push(cleaned);
+      }
+    }
+  } else if (typeof input === "string") {
+    const trimmedInput = input.trim();
+    if (trimmedInput) {
+      if (trimmedInput.includes("#") && !trimmedInput.includes(",")) {
+        const matches = [...trimmedInput.matchAll(/#([\p{L}\p{N}_-]+)/gu)];
+        if (matches.length > 0) {
+          tags.push(...matches.map((m) => m[1].trim()).filter(Boolean));
+        }
+      } else {
+        tags.push(...trimmedInput
+          .split(",")
+          .map((item) => {
+            let cleaned = item.trim();
+            if (cleaned.startsWith("#")) {
+              cleaned = cleaned.substring(1).trim();
+            }
+            return cleaned;
+          })
+          .filter(Boolean));
+      }
+    }
   }
 
-  if (typeof input === "string") {
-    return input
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  return [];
+  return [...new Set(tags)];
 }
 
 function normalizeCoursePayload(body) {

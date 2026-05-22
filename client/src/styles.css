@@ -581,6 +581,7 @@ h4 {
 .course-card-media {
   display: grid;
   gap: 12px;
+  align-self: start;
 }
 
 .course-card.compact {

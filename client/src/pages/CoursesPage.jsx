@@ -187,7 +187,7 @@ export default function CoursesPage() {
 
                 <div className="meta-row">
                   <span>Автор: {course.author_name}</span>
-                  <span>Уроков: {course.lessons_count}</span>
+                  <span>Количество уроков: {course.lessons_count}</span>
                 </div>
               </div>
             </article>
