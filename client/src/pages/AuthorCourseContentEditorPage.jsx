@@ -161,6 +161,42 @@ export default function AuthorCourseContentEditorPage() {
     chatEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
   }, [chatMessages, isChatLoading]);
 
+  // Load chat history from localStorage
+  useEffect(() => {
+    const courseId = params.id;
+    if (user?.id && courseId) {
+      if (chatLoadedRef.current.userId !== user.id || chatLoadedRef.current.courseId !== courseId) {
+        const saved = localStorage.getItem(`chat_history_${user.id}_course_content_${courseId}`);
+        if (saved) {
+          try {
+            setChatMessages(JSON.parse(saved));
+          } catch (e) {
+            console.error("Failed to parse saved chat history:", e);
+            setChatMessages([]);
+          }
+        } else {
+          setChatMessages([]);
+        }
+        chatLoadedRef.current = { userId: user.id, courseId };
+      }
+    } else {
+      setChatMessages([]);
+      chatLoadedRef.current = { userId: null, courseId: null };
+    }
+  }, [user?.id, params.id]);
+
+  // Save chat history to localStorage
+  useEffect(() => {
+    const courseId = params.id;
+    if (user?.id && courseId && chatLoadedRef.current.userId === user.id && chatLoadedRef.current.courseId === courseId) {
+      if (chatMessages.length > 0) {
+        localStorage.setItem(`chat_history_${user.id}_course_content_${courseId}`, JSON.stringify(chatMessages));
+      } else {
+        localStorage.removeItem(`chat_history_${user.id}_course_content_${courseId}`);
+      }
+    }
+  }, [chatMessages, user?.id, params.id]);
+
   const selectedBlock = useMemo(() => {
     return (lessonDetail?.blocks || []).find((block) => block.id === activeBlockId) || null;
   }, [lessonDetail, activeBlockId]);

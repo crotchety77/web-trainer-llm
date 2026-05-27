@@ -51,10 +51,47 @@ export default function AuthorCourseEditorPage() {
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef(null);
+  const chatLoadedRef = useRef({ userId: null, courseId: null });
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
   }, [chatMessages, isChatLoading]);
+
+  // Load chat history from localStorage
+  useEffect(() => {
+    const activeCourseId = courseId || "new";
+    if (user?.id) {
+      if (chatLoadedRef.current.userId !== user.id || chatLoadedRef.current.courseId !== activeCourseId) {
+        const saved = localStorage.getItem(`chat_history_${user.id}_course_editor_${activeCourseId}`);
+        if (saved) {
+          try {
+            setChatMessages(JSON.parse(saved));
+          } catch (e) {
+            console.error("Failed to parse saved chat history:", e);
+            setChatMessages([]);
+          }
+        } else {
+          setChatMessages([]);
+        }
+        chatLoadedRef.current = { userId: user.id, courseId: activeCourseId };
+      }
+    } else {
+      setChatMessages([]);
+      chatLoadedRef.current = { userId: null, courseId: null };
+    }
+  }, [user?.id, courseId]);
+
+  // Save chat history to localStorage
+  useEffect(() => {
+    const activeCourseId = courseId || "new";
+    if (user?.id && chatLoadedRef.current.userId === user.id && chatLoadedRef.current.courseId === activeCourseId) {
+      if (chatMessages.length > 0) {
+        localStorage.setItem(`chat_history_${user.id}_course_editor_${activeCourseId}`, JSON.stringify(chatMessages));
+      } else {
+        localStorage.removeItem(`chat_history_${user.id}_course_editor_${activeCourseId}`);
+      }
+    }
+  }, [chatMessages, user?.id, courseId]);
 
   useEffect(() => {
     if (isNew || !params.id) {

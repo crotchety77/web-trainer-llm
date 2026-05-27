@@ -87,10 +87,45 @@ export default function LearnPage() {
 
   const activeLessonRef = useRef(null);
   const chatEndRef = useRef(null);
+  const chatLoadedRef = useRef({ userId: null, lessonId: null });
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
   }, [chatMessages, isChatLoading]);
+
+  // Load chat history from localStorage
+  useEffect(() => {
+    if (user?.id && lessonId) {
+      if (chatLoadedRef.current.userId !== user.id || chatLoadedRef.current.lessonId !== lessonId) {
+        const saved = localStorage.getItem(`chat_history_${user.id}_lesson_${lessonId}`);
+        if (saved) {
+          try {
+            setChatMessages(JSON.parse(saved));
+          } catch (e) {
+            console.error("Failed to parse saved chat history:", e);
+            setChatMessages([]);
+          }
+        } else {
+          setChatMessages([]);
+        }
+        chatLoadedRef.current = { userId: user.id, lessonId };
+      }
+    } else {
+      setChatMessages([]);
+      chatLoadedRef.current = { userId: null, lessonId: null };
+    }
+  }, [user?.id, lessonId]);
+
+  // Save chat history to localStorage
+  useEffect(() => {
+    if (user?.id && lessonId && chatLoadedRef.current.userId === user.id && chatLoadedRef.current.lessonId === lessonId) {
+      if (chatMessages.length > 0) {
+        localStorage.setItem(`chat_history_${user.id}_lesson_${lessonId}`, JSON.stringify(chatMessages));
+      } else {
+        localStorage.removeItem(`chat_history_${user.id}_lesson_${lessonId}`);
+      }
+    }
+  }, [chatMessages, user?.id, lessonId]);
 
   useEffect(() => {
     if (activeLessonRef.current && lessons.length > 0) {

@@ -53,29 +53,29 @@ describe("DashboardPage API key settings", () => {
   it("shows unavailable status when no personal API key is configured", () => {
     renderDashboard();
 
-    expect(screen.getByText("Assistant chat is unavailable until you add a personal API key and Folder ID.")).toBeInTheDocument();
+    expect(screen.getByText("Чат ассистента недоступен, пока вы не добавите персональный API ключ и Folder ID.")).toBeInTheDocument();
   });
 
   it("rejects invalid API key input before sending a request", () => {
     renderDashboard();
 
-    fireEvent.change(screen.getByLabelText("Personal Yandex API key"), {
+    fireEvent.change(screen.getByLabelText("Персональный API ключ Yandex"), {
       target: { value: "too short" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save key" }));
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить ключ" }));
 
     expect(apiRequest).not.toHaveBeenCalledWith("/api/auth/me/api-key", expect.anything());
-    expect(screen.getByText("API key must be 20-300 characters and must not contain spaces.")).toBeInTheDocument();
+    expect(screen.getByText("API ключ должен быть длиной от 20 до 300 символов и не должен содержать пробелы.")).toBeInTheDocument();
   });
 
   it("saves a personal API key", async () => {
     apiRequest.mockResolvedValueOnce({ has_llm_api_key: true });
     renderDashboard();
 
-    fireEvent.change(screen.getByLabelText("Personal Yandex API key"), {
+    fireEvent.change(screen.getByLabelText("Персональный API ключ Yandex"), {
       target: { value: "yandex-api-key-1234567890" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save key" }));
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить ключ" }));
 
     await waitFor(() => {
       expect(apiRequest).toHaveBeenCalledWith("/api/auth/me/api-key", {
@@ -96,7 +96,7 @@ describe("DashboardPage API key settings", () => {
     apiRequest.mockResolvedValueOnce({ has_llm_api_key: false });
     renderDashboard();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete key" }));
+    fireEvent.click(screen.getByRole("button", { name: "Удалить ключ" }));
 
     await waitFor(() => {
       expect(apiRequest).toHaveBeenCalledWith("/api/auth/me/api-key", {
@@ -112,10 +112,10 @@ describe("DashboardPage API key settings", () => {
     apiRequest.mockResolvedValueOnce({ has_llm_folder_id: true });
     renderDashboard();
 
-    fireEvent.change(screen.getByLabelText("Personal Yandex Folder ID"), {
+    fireEvent.change(screen.getByLabelText("Персональный Yandex Folder ID"), {
       target: { value: "folder-id_123" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save Folder ID" }));
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить Folder ID" }));
 
     await waitFor(() => {
       expect(apiRequest).toHaveBeenCalledWith("/api/auth/me/folder-id", {
@@ -136,7 +136,7 @@ describe("DashboardPage API key settings", () => {
     apiRequest.mockResolvedValueOnce({ has_llm_folder_id: false });
     renderDashboard();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Folder ID" }));
+    fireEvent.click(screen.getByRole("button", { name: "Удалить Folder ID" }));
 
     await waitFor(() => {
       expect(apiRequest).toHaveBeenCalledWith("/api/auth/me/folder-id", {

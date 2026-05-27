@@ -123,14 +123,14 @@ describe("LearnPage", () => {
   it("loads lessons and renders theory, practice, and test blocks", async () => {
     renderLearnPage();
 
-    expect(screen.getByText("Loading lesson...")).toBeInTheDocument();
+    expect(screen.getByText("Загрузка урока...")).toBeInTheDocument();
     expect(await screen.findByText("JavaScript Basics")).toBeInTheDocument();
 
     expect(screen.getByRole("heading", { name: "1. Intro" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "1Intro" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "2Practice" })).toBeInTheDocument();
     expect(screen.getByText("Read this theory first.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Attachment" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Прикрепленный файл" })).toHaveAttribute(
       "href",
       "https://example.com/theory.pdf"
     );
@@ -143,9 +143,9 @@ describe("LearnPage", () => {
 
     const editor = await screen.findByLabelText("Solution code for Write code");
     fireEvent.change(editor, { target: { value: "function solve() { return true; }" } });
-    fireEvent.click(screen.getAllByRole("button", { name: "Submit solution" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Проверить решение" })[0]);
 
-    expect(screen.getByRole("button", { name: "Submitting..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Отправка..." })).toBeDisabled();
 
     await waitFor(() => {
       expect(apiRequest).toHaveBeenCalledWith("/api/blocks/102/submissions", {
@@ -159,7 +159,7 @@ describe("LearnPage", () => {
         })
       });
     });
-    expect(await screen.findByText("Solution submitted successfully.")).toBeInTheDocument();
+    expect(await screen.findByText("Решение прошло проверку")).toBeInTheDocument();
   });
 
   it("keeps code and shows an error when submission fails", async () => {
@@ -183,7 +183,7 @@ describe("LearnPage", () => {
 
     const editor = await screen.findByLabelText("Solution code for Write code");
     fireEvent.change(editor, { target: { value: "bad code" } });
-    fireEvent.click(screen.getAllByRole("button", { name: "Submit solution" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Проверить решение" })[0]);
 
     expect(await screen.findByText("Failed to submit solution")).toBeInTheDocument();
     expect(editor).toHaveValue("bad code");
@@ -193,7 +193,7 @@ describe("LearnPage", () => {
     renderLearnPage();
 
     await screen.findByLabelText("Solution code for Write code");
-    fireEvent.click(screen.getAllByRole("button", { name: "Submit solution" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Проверить решение" })[0]);
 
     expect(await screen.findByText("Пожалуйста, введите код решения перед отправкой.")).toBeInTheDocument();
     expect(apiRequest).not.toHaveBeenCalledWith(
@@ -224,7 +224,7 @@ describe("LearnPage", () => {
     const editor = await screen.findByLabelText("Solution code for Write code");
     fireEvent.change(editor, { target: { value: "function solve() { return false; }" } });
 
-    const input = screen.getByPlaceholderText(/@step2 почему у меня ошибка/);
+    const input = screen.getByLabelText("@step2 Почему возникла ошибка?");
     fireEvent.change(input, { target: { value: "@step2 why error?" } });
     expect(screen.getByText("@step2")).toBeInTheDocument();
 
@@ -234,7 +234,8 @@ describe("LearnPage", () => {
       expect(apiRequest).toHaveBeenCalledWith("/api/ai/chat", expect.objectContaining({
         method: "POST",
         headers: {
-          Authorization: "Bearer test-token"
+          Посмотри, какие текущие шаблоны есть у меня.
+            Authorization: "Bearer test-token"
         },
         body: expect.any(String)
       }));
