@@ -1,17 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { extractContextRefs, extractStepRefs } from "./extractStepRefs";
 
-describe("extractStepRefs()", () => {
-  it("extracts one or more @step references", () => {
-    expect(extractStepRefs("@step1 @step3")).toEqual([1, 3]);
+describe("extractStepRefs() (Таблица П.8)", () => {
+  it("ES-01: Извлечение множественных ссылок", () => {
+    expect(extractStepRefs("@step1 и @step3")).toEqual([1, 3]);
   });
 
-  it("deduplicates references and is case-insensitive", () => {
-    expect(extractStepRefs("@STEP2 explain @step2 again")).toEqual([2]);
+  it("ES-02: Дедупликация повторяющихся ссылок", () => {
+    expect(extractStepRefs("@step2 почему @step2 падает")).toEqual([2]);
   });
 
-  it("ignores text without step references", () => {
-    expect(extractStepRefs("why does this fail?")).toEqual([]);
+  it("ES-03: Обработка текста без ссылок", () => {
+    expect(extractStepRefs("обычный текст без упоминаний")).toEqual([]);
+  });
+
+  it("ES-04: Распознавание числового значения ноль", () => {
+    expect(extractStepRefs("@step0")).toEqual([0]);
+  });
+
+  it("ES-05: Игнорирование некорректного синтаксиса", () => {
+    expect(extractStepRefs("@stepABC")).toEqual([]);
   });
 });
 

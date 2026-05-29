@@ -1,22 +1,10 @@
-/**
- * Модульные тесты: шифрование и валидация пользовательских API-ключей.
- *
- * Тестируемый модуль: userApiKey.js
- * Алгоритм шифрования: AES-256-GCM (аутентифицированное шифрование).
- *
- * Цель тестов — убедиться, что:
- * - API-ключи шифруются и расшифровываются без потери данных;
- * - повреждённые или подделанные зашифрованные значения отклоняются (целостность GCM);
- * - некорректные ключи окружения вызывают предсказуемые ошибки;
- * - каждое шифрование генерирует уникальный IV (защита от повторного использования nonce);
- * - валидация формата ключа отсекает слишком короткие, длинные и содержащие пробелы значения.
- */
 import crypto from "crypto";
 import { describe, expect, it } from "vitest";
 import {
   decryptUserApiKey,
   encryptUserApiKey,
-  isValidUserLlmApiKey
+  isValidUserLlmApiKey,
+  isValidUserLlmFolderId
 } from "./userApiKey.js";
 
 // Генерация валидного 32-байтного ключа шифрования (аналог переменной окружения USER_API_KEY_ENCRYPTION_KEY)
@@ -62,12 +50,65 @@ describe("userApiKey module", () => {
     expect(decryptUserApiKey(encrypted2, encryptionKey)).toBe(rawApiKey);
   });
 
-  // --- Валидация формата API-ключа (граничные значения: 20–300 символов, без пробелов) ---
+  // --- Валидация API-ключа пользователя (Таблица П.1) ---
 
-  it("VK: валидация формата пользовательского API-ключа", () => {
-    expect(isValidUserLlmApiKey("yandex-api-key-1234567890")).toBe(true);   // 25 символов — норма
-    expect(isValidUserLlmApiKey("short")).toBe(false);                      // < 20 символов
-    expect(isValidUserLlmApiKey("yandex api key 1234567890")).toBe(false);  // содержит пробелы
-    expect(isValidUserLlmApiKey("a".repeat(301))).toBe(false);             // > 300 символов
+  it("VK-01: Проверка корректной длины API-ключа", () => {
+    expect(isValidUserLlmApiKey("yandex-api-key-1234567890")).toBe(true);
+  });
+
+  it("VK-02: Проверка минимальной допустимой длины", () => {
+    expect(isValidUserLlmApiKey("a".repeat(20))).toBe(true);
+  });
+
+  it("VK-03: Проверка выхода за нижнюю границу длины", () => {
+    expect(isValidUserLlmApiKey("a".repeat(19))).toBe(false);
+  });
+
+  it("VK-04: Проверка максимальной допустимой длины", () => {
+    expect(isValidUserLlmApiKey("a".repeat(300))).toBe(true);
+  });
+
+  it("VK-05: Проверка выхода за верхнюю границу длины", () => {
+    expect(isValidUserLlmApiKey("a".repeat(301))).toBe(false);
+  });
+
+  it("VK-06: Проверка отсутствия пробелов", () => {
+    expect(isValidUserLlmApiKey("yandex api key 1234567890")).toBe(false);
+  });
+
+  it("VK-07: Проверка обработки некорректных типов данных", () => {
+    expect(isValidUserLlmApiKey("")).toBe(false);
+    expect(isValidUserLlmApiKey(null)).toBe(false);
+    expect(isValidUserLlmApiKey(undefined)).toBe(false);
+  });
+
+  it("VK-08: Проверка обработки пробельных символов по краям", () => {
+    expect(isValidUserLlmApiKey("   yandex-api-key-1234567890   ")).toBe(true);
+  });
+
+  // --- Валидация ID каталога платформы (Таблица П.2) ---
+
+  it("FI-01: Проверка соответствия белому списку символов", () => {
+    expect(isValidUserLlmFolderId("my-folder_123")).toBe(true);
+  });
+
+  it("FI-02: Проверка минимальной допустимой длины", () => {
+    expect(isValidUserLlmFolderId("fld_01")).toBe(true);
+  });
+
+  it("FI-03: Проверка выхода за нижнюю границу длины", () => {
+    expect(isValidUserLlmFolderId("fld_1")).toBe(false);
+  });
+
+  it("FI-04: Проверка максимальной допустимой длины", () => {
+    expect(isValidUserLlmFolderId("a".repeat(128))).toBe(true);
+  });
+
+  it("FI-05: Проверка обработки недопустимых символов", () => {
+    expect(isValidUserLlmFolderId("my_folder@!#")).toBe(false);
+  });
+
+  it("FI-06: Проверка обработки некорректных типов данных", () => {
+    expect(isValidUserLlmFolderId(null)).toBe(false);
   });
 });

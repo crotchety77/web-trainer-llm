@@ -1,7 +1,7 @@
 /**
  * Модульные тесты: ролевая модель доступа (RBAC).
  *
- * Тестируемый middleware: requireRole
+ * Тестируемый middleware: requireRole и authMiddleware
  * 
  * Цель тестов — убедиться, что:
  * - доступ предоставляется только пользователям с разрешёнными ролями (author, student, admin);
@@ -10,11 +10,13 @@
  * - администратор (admin) не имеет неявного доступа ко всем ресурсам, если это не указано явно (принцип наименьших привилегий).
  */
 import { describe, expect, it, vi } from "vitest";
-import { requireRole } from "./authMiddleware.js";
+import { authMiddleware, requireRole } from "./authMiddleware.js";
+import jwt from "jsonwebtoken";
+import { config } from "../config.js";
 
 // Вспомогательная функция для имитации Express request, response, next
-function createMockContext(user = null) {
-  const request = { user };
+function createMockContext(user = null, header = null) {
+  const request = { user, headers: { authorization: header } };
   const response = {
     statusCode: null,
     body: null,
@@ -30,6 +32,56 @@ function createMockContext(user = null) {
   const next = vi.fn();
   return { request, response, next };
 }
+
+describe("authMiddleware() (Таблица П.3)", () => {
+  it("AM-01: Проверка корректного токена доступа", () => {
+    const token = jwt.sign({ id: 1, role: "student" }, config.jwtSecret);
+    const { request, response, next } = createMockContext(null, `Bearer ${token}`);
+    
+    authMiddleware(request, response, next);
+    
+    expect(next).toHaveBeenCalled();
+    expect(request.user).toBeDefined();
+    expect(request.user.role).toBe("student");
+  });
+
+  it("AM-02: Проверка отсутствия заголовка авторизации", () => {
+    const { request, response, next } = createMockContext(null, null);
+    
+    authMiddleware(request, response, next);
+    
+    expect(next).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("AM-03: Проверка обработки неверного типа токена", () => {
+    const { request, response, next } = createMockContext(null, "Basic sometoken");
+    
+    authMiddleware(request, response, next);
+    
+    expect(next).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("AM-04: Проверка криптографической подписи", () => {
+    const { request, response, next } = createMockContext(null, "Bearer random_string");
+    
+    authMiddleware(request, response, next);
+    
+    expect(next).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("AM-05: Проверка времени жизни токена (exp)", () => {
+    const expiredToken = jwt.sign({ id: 1 }, config.jwtSecret, { expiresIn: "-1h" });
+    const { request, response, next } = createMockContext(null, `Bearer ${expiredToken}`);
+    
+    authMiddleware(request, response, next);
+    
+    expect(next).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(401);
+  });
+});
 
 describe("requireRole()", () => {
   it("RR-01: разрешает доступ, если роль пользователя совпадает с требуемой", () => {
