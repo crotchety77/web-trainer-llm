@@ -25,7 +25,7 @@ function getSubmissionMessage(blockState) {
   return submission?.result_message || blockState?.error || blockState?.hint || null;
 }
 
-function getFailedTests(submission) {
+export function getFailedTests(submission) {
   const details = submission?.tests_result?.details;
   if (!Array.isArray(details)) return [];
 

@@ -224,7 +224,7 @@ describe("LearnPage", () => {
     const editor = await screen.findByLabelText("Solution code for Write code");
     fireEvent.change(editor, { target: { value: "function solve() { return false; }" } });
 
-    const input = screen.getByLabelText("@step2 Почему возникла ошибка?");
+    const input = screen.getByLabelText("Assistant message");
     fireEvent.change(input, { target: { value: "@step2 why error?" } });
     expect(screen.getByText("@step2")).toBeInTheDocument();
 
@@ -234,8 +234,7 @@ describe("LearnPage", () => {
       expect(apiRequest).toHaveBeenCalledWith("/api/ai/chat", expect.objectContaining({
         method: "POST",
         headers: {
-          Посмотри, какие текущие шаблоны есть у меня.
-            Authorization: "Bearer test-token"
+          Authorization: "Bearer test-token"
         },
         body: expect.any(String)
       }));
