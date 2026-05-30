@@ -76,6 +76,8 @@ export default function LearnPage() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isAssistantSheetOpen, setIsAssistantSheetOpen] = useState(false);
+  const [isLessonsOpen, setIsLessonsOpen] = useState(false);
   const [activeMode, setActiveMode] = useState(null);
   const [quizAnswers, setQuizAnswers] = useState({});
 
@@ -92,6 +94,21 @@ export default function LearnPage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
   }, [chatMessages, isChatLoading]);
+
+  useEffect(() => {
+    if (!isAssistantSheetOpen) {
+      return undefined;
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setIsAssistantSheetOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isAssistantSheetOpen]);
 
   // Load chat history from localStorage
   useEffect(() => {
@@ -413,6 +430,23 @@ export default function LearnPage() {
     }
   }
 
+  const chatPanelProps = {
+    user,
+    messages: chatMessages,
+    chatInput,
+    setChatInput,
+    onSendMessage: handleChatSubmit,
+    onClearHistory: () => setChatMessages([]),
+    isChatLoading,
+    isAssistantAvailable,
+    activeMode,
+    setActiveMode,
+    modes: STUDENT_MODES,
+    modeDescriptions: MODE_DESCRIPTIONS,
+    detectedContext: detectedStepRefs,
+    chatEndRef
+  };
+
   return (
     <AppLayout
       title={lesson?.course_title || "Процесс обучения"}
@@ -425,12 +459,24 @@ export default function LearnPage() {
 
         {!loading && lesson ? (
           <div className="learn-layout">
-            <aside className="learn-sidebar" aria-label="Lesson navigation">
+            <aside className={`learn-sidebar ${isLessonsOpen ? "open" : ""}`} aria-label="Lesson navigation">
+              <button
+                type="button"
+                className="learn-sidebar-toggle"
+                onClick={() => setIsLessonsOpen((current) => !current)}
+                aria-expanded={isLessonsOpen}
+              >
+                <span>
+                  <span className="eyebrow">Курс</span>
+                  <strong>Уроки</strong>
+                </span>
+                <span aria-hidden="true">{isLessonsOpen ? "−" : "+"}</span>
+              </button>
               <div className="learn-sidebar-header">
                 <span className="eyebrow">Курс</span>
                 <h2>Уроки</h2>
               </div>
-              <div className="stack-list" style={{ marginTop: '1rem' }}>
+              <div className="stack-list learn-lessons-list">
                 {lessons.map((item, index) => {
                   const displayPosition = index + 1;
 
@@ -601,24 +647,37 @@ export default function LearnPage() {
                 </div>
               </main>
 
-              <AIChatPanel
-                className="assistant-panel"
-                user={user}
-                messages={chatMessages}
-                chatInput={chatInput}
-                setChatInput={setChatInput}
-                onSendMessage={handleChatSubmit}
-                onClearHistory={() => setChatMessages([])}
-                isChatLoading={isChatLoading}
-                isAssistantAvailable={isAssistantAvailable}
-                activeMode={activeMode}
-                setActiveMode={setActiveMode}
-                modes={STUDENT_MODES}
-                modeDescriptions={MODE_DESCRIPTIONS}
-                detectedContext={detectedStepRefs}
-                chatEndRef={chatEndRef}
-              />
+              <AIChatPanel className="assistant-panel desktop-assistant-panel" {...chatPanelProps} />
             </div>
+
+            <button
+              type="button"
+              className="assistant-fab"
+              onClick={() => setIsAssistantSheetOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={isAssistantSheetOpen}
+            >
+              Чат
+            </button>
+            <div
+              className={`assistant-sheet-backdrop ${isAssistantSheetOpen ? "open" : ""}`}
+              onClick={() => setIsAssistantSheetOpen(false)}
+              aria-hidden="true"
+            />
+            <section
+              className={`assistant-sheet ${isAssistantSheetOpen ? "open" : ""}`}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Ассистент курса"
+            >
+              <div className="assistant-sheet-header">
+                <strong>Ассистент курса</strong>
+                <button type="button" onClick={() => setIsAssistantSheetOpen(false)} aria-label="Закрыть чат">
+                  ×
+                </button>
+              </div>
+              <AIChatPanel className="assistant-panel assistant-panel-mobile" {...chatPanelProps} />
+            </section>
           </div>
         ) : null}
       </section>

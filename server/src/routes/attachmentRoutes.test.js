@@ -79,7 +79,7 @@ describe("attachment routes", () => {
       const response = await request(app)
         .post("/api/blocks/10/attachments")
         .set("Authorization", `Bearer ${createAuthorToken()}`)
-        .attach("file", Buffer.from("dummy pdf content"), {
+        .attach("file", Buffer.from("%PDF-1.4 dummy pdf content"), {
           filename: "test.pdf",
           contentType: "application/pdf"
         });

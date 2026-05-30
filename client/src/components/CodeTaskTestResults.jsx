@@ -4,9 +4,6 @@ export default function CodeTaskTestResults({ results, isAuthor = false }) {
   if (!results) return null;
 
   const isSuccess = results.status === "passed" || results.status === "accepted";
-
-  // Сортируем тест-кейсы: сначала упавшие (passed === false), затем успешные (passed === true)
-  // При этом сохраняем исходный порядковый номер теста (originalIdx)
   const sortedDetails = (results.tests_result?.details || [])
     .map((detail, idx) => ({ ...detail, originalIdx: idx }))
     .sort((a, b) => {
@@ -14,17 +11,13 @@ export default function CodeTaskTestResults({ results, isAuthor = false }) {
       return a.passed ? 1 : -1;
     });
 
-  // Локализация статуса выполнения
   let statusText = results.status || "Результат";
   if (results.status === "passed" || results.status === "accepted") {
     statusText = "Успешно";
-  } else if (results.status === "failed") {
-    statusText = "Ошибка";
-  } else if (results.status === "error") {
+  } else if (results.status === "failed" || results.status === "error") {
     statusText = "Ошибка";
   }
 
-  // Локализация сообщения об ошибках / результатах проверки
   let messageText = results.result_message || "";
   if (messageText === "All tests passed successfully!") {
     messageText = "Все проверки успешно пройдены!";
@@ -39,7 +32,6 @@ export default function CodeTaskTestResults({ results, isAuthor = false }) {
 
   return (
     <div className="code-task-results-wrapper">
-      {/* Компактный блок статуса выполнения */}
       {isAuthor ? (
         <div className={`check-result ${isSuccess ? "success-result" : "error-result"}`}>
           <span className="result-status-title">{statusText}</span>
@@ -51,14 +43,12 @@ export default function CodeTaskTestResults({ results, isAuthor = false }) {
 
       {results.tests_result ? (
         <div className="test-stats">
-          {/* Сводная статистика вынесена за пределы цветного контейнера статуса */}
-          <div className="test-stats-summary" style={{ display: "flex", gap: "1rem", marginBottom: "1rem", fontWeight: "bold", alignItems: "start" }}>
-            <span className="test-stat-item total" style={{ alignSelf: "center", height: "fit-content", width: "fit-content" }}>Всего: {results.tests_result.total}</span>
-            <span className="test-stat-item passed" style={{ color: "#10b981", alignSelf: "center", height: "fit-content", width: "fit-content" }}>Успешно: {results.tests_result.passed}</span>
-            <span className="test-stat-item failed" style={{ color: "#ef4444", alignSelf: "center", height: "fit-content", width: "fit-content" }}>Упало: {results.tests_result.failed}</span>
+          <div className="test-stats-summary">
+            <span className="test-stat-item total">Всего: {results.tests_result.total}</span>
+            <span className="test-stat-item passed">Успешно: {results.tests_result.passed}</span>
+            <span className="test-stat-item failed">Упало: {results.tests_result.failed}</span>
           </div>
 
-          {/* Контейнер с возможностью прокрутки (серый скролл) */}
           <div className="test-cases-scroll-container">
             {sortedDetails.map((detail) => {
               const showDetails = !detail.passed && (isAuthor || !detail.is_hidden);
@@ -68,94 +58,62 @@ export default function CodeTaskTestResults({ results, isAuthor = false }) {
                 <div
                   key={detail.originalIdx}
                   className={`test-case-detail ${detail.passed ? "passed" : "failed"}`}
-                  style={{
-                    padding: "0.75rem",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "6px",
-                    background: detail.passed ? "#f0fdf4" : "#fef2f2"
-                  }}
                 >
                   <div className="test-case-title">
                     Тест #{detail.originalIdx + 1} {detail.passed ? "Пройден" : "Упал"}
                   </div>
 
-                  {showDetails && (
-                    <div className="test-case-io-details" style={{ fontSize: "0.85rem", display: "grid", gap: "0.5rem" }}>
+                  {showDetails ? (
+                    <div className="test-case-io-details">
                       <div className="test-case-io-block stdin">
-                        <strong className="test-case-io-label" style={{ color: "#64748b" }}>Ввод (stdin):</strong>
-                        <pre className="test-case-io-pre" style={{ margin: 0, padding: "0.25rem", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px", fontFamily: "monospace" }}>
-                          {detail.input}
-                        </pre>
+                        <strong className="test-case-io-label">Ввод (stdin):</strong>
+                        <pre className="test-case-io-pre">{detail.input}</pre>
                       </div>
                       <div className="test-case-io-block expected">
-                        <strong className="test-case-io-label" style={{ color: "#64748b" }}>Ожидалось (stdout):</strong>
-                        <pre className="test-case-io-pre" style={{ margin: 0, padding: "0.25rem", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px", fontFamily: "monospace" }}>
-                          {detail.expected}
-                        </pre>
+                        <strong className="test-case-io-label">Ожидалось (stdout):</strong>
+                        <pre className="test-case-io-pre">{detail.expected}</pre>
                       </div>
                       <div className="test-case-io-block actual">
-                        <strong className="test-case-io-label" style={{ color: "#64748b" }}>
+                        <strong className="test-case-io-label">
                           {isAuthor ? "Реальный вывод:" : "Ваш вывод:"}
                         </strong>
                         {detail.actual && detail.actual.trim() ? (
-                          <pre className="test-case-io-pre" style={{ margin: 0, padding: "0.25rem", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "4px", color: "#b91c1c", fontFamily: "monospace" }}>
-                            {detail.actual}
-                          </pre>
+                          <pre className="test-case-io-pre actual-output">{detail.actual}</pre>
                         ) : (
-                          <span style={{ color: "#94a3b8", fontStyle: "italic", marginLeft: "0.5rem" }}></span>
+                          <span className="test-case-empty-output" />
                         )}
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
-                  {isHidden && (
-                    <div className="test-case-hidden-notice" style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                  {isHidden ? (
+                    <div className="test-case-hidden-notice">
                       Скрытый тест. Детали не отображаются.
                     </div>
-                  )}
+                  ) : null}
 
-                  {/* --- РАЗДЕЛ ДЕБАГА ДЛЯ АВТОРА --- */}
-                  {isAuthor && (
-                    <div
-                      className="test-case-debug-panel"
-                      style={{
-                        marginTop: "0.75rem",
-                        padding: "0.5rem",
-                        background: "#1e293b",
-                        color: "#e2e8f0",
-                        borderRadius: "4px",
-                        fontSize: "0.75rem",
-                        fontFamily: "monospace"
-                      }}
-                    >
-                      <strong className="test-case-debug-title" style={{ color: "#94a3b8", display: "block", marginBottom: "0.5rem", fontFamily: "sans-serif" }}>
-                        🛠 лог Piston:
-                      </strong>
-                      {detail.raw_stdout && (
-                        <div className="test-case-debug-section stdout" style={{ marginBottom: "0.5rem" }}>
-                          <span className="test-case-debug-label" style={{ color: "#4ade80", fontWeight: "bold" }}>[STDOUT]</span>
-                          <br />
-                          <pre className="test-case-debug-pre" style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", fontFamily: "monospace" }}>
-                            {detail.raw_stdout}
-                          </pre>
+                  {isAuthor ? (
+                    <div className="test-case-debug-panel">
+                      <strong className="test-case-debug-title">Лог Piston:</strong>
+                      {detail.raw_stdout ? (
+                        <div className="test-case-debug-section stdout">
+                          <span className="test-case-debug-label stdout">[STDOUT]</span>
+                          <pre className="test-case-debug-pre">{detail.raw_stdout}</pre>
                         </div>
-                      )}
-                      {detail.raw_stderr && (
+                      ) : null}
+                      {detail.raw_stderr ? (
                         <div className="test-case-debug-section stderr">
-                          <span className="test-case-debug-label" style={{ color: "#f87171", fontWeight: "bold" }}>[STDERR]</span>
-                          <br />
-                          <pre className="test-case-debug-pre" style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", fontFamily: "monospace" }}>
-                            {detail.raw_stderr}
-                          </pre>
+                          <span className="test-case-debug-label stderr">[STDERR]</span>
+                          <pre className="test-case-debug-pre">{detail.raw_stderr}</pre>
                         </div>
-                      )}
-                      {!detail.raw_stdout && !detail.raw_stderr && (
-                        <span className="test-case-debug-empty" style={{ color: "#b8c4d4ff" }}>
+                      ) : null}
+                      {!detail.raw_stdout && !detail.raw_stderr ? (
+                        <span className="test-case-debug-empty">
                           Вывод абсолютно пуст. Возможно, функция ничего не возвращает или не была вызвана.
                         </span>
-                      )}
+                      ) : null}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               );
             })}
