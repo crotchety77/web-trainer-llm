@@ -10,3 +10,9 @@ playwright-report/
 .env
 .env.*
 .vscode/
+
+# JMeter load testing artifacts
+load-test/*.jtl
+load-test/html-report/
+load-test/report_group*/
+jmeter.log
