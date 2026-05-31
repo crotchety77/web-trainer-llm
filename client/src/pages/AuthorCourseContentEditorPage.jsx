@@ -145,6 +145,7 @@ export default function AuthorCourseContentEditorPage() {
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef(null);
+  const chatLoadedRef = useRef({ userId: null, courseId: null });
   const [activeMode, setActiveMode] = useState(null);
   const detectedStepRefs = useMemo(() => extractStepRefs(chatInput), [chatInput]);
   const [authorTestCode, setAuthorTestCode] = useState({});

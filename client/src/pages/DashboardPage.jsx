@@ -432,9 +432,9 @@ export default function DashboardPage() {
                     const percentage = course.total_blocks > 0 ? Math.round((course.completed_blocks / course.total_blocks) * 100) : 0;
                     return (
                       <article key={course.id} className="course-card compact" style={{ display: 'block', padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '1rem' }}>
                           <h4 style={{ margin: 0 }}>{course.title}</h4>
-                          <span style={{ fontWeight: 'bold', color: '#0b63f6' }}>{percentage}%</span>
+                          <span style={{ fontWeight: 'bold', color: '#0b63f6', whiteSpace: 'nowrap', flexShrink: 0 }}>{percentage}%</span>
                         </div>
                         <div style={{ background: '#e2e8f0', borderRadius: '999px', height: '8px', width: '100%', overflow: 'hidden', marginBottom: '1.5rem' }}>
                           <div style={{ background: '#0b63f6', height: '100%', width: `${percentage}%`, transition: 'width 0.3s ease' }}></div>
