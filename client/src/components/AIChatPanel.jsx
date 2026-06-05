@@ -30,7 +30,8 @@ export default function AIChatPanel({
   const safeMessages = Array.isArray(messages) ? messages : [];
   const safeDetectedContext = Array.isArray(detectedContext) ? detectedContext : [];
   const safeModes = Array.isArray(modes) ? modes : [];
-  const activeModeLabel = safeModes.find((mode) => mode.id === activeMode)?.label || "Выбрать режим";
+  const activeModeItem = safeModes.find((mode) => mode.id === activeMode);
+  const activeModeLabel = activeModeItem ? `${activeModeItem.icon || ""} ${activeModeItem.label}`.trim() : "Выбрать режим";
 
   function handleModeClick(mode, event) {
     if (!isAssistantAvailable) {
@@ -51,15 +52,32 @@ export default function AIChatPanel({
       </div>
 
       {safeModes.length > 0 ? (
-        <details
-          className="chat-mode-disclosure"
-          open={isOpen}
-          onToggle={(event) => setIsOpen(event.currentTarget.open)}
-        >
-          <summary>
-            <span>{activeModeLabel}</span>
-            <span className="chat-mode-chevron" aria-hidden="true" />
-          </summary>
+        isMobile ? (
+          <details
+            className="chat-mode-disclosure"
+            open={isOpen}
+            onToggle={(event) => setIsOpen(event.currentTarget.open)}
+          >
+            <summary>
+              <span>{activeModeLabel}</span>
+              <span className="chat-mode-chevron" aria-hidden="true" />
+            </summary>
+             <div className="chat-quick-actions">
+              {safeModes.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  className={`chat-mode-button ${activeMode === mode.id ? "active" : ""}`}
+                  onClick={(event) => handleModeClick(mode, event)}
+                  disabled={!isAssistantAvailable}
+                >
+                  {mode.icon && <span className="chat-mode-icon">{mode.icon}</span>}
+                  <span className="chat-mode-label">{mode.label}</span>
+                </button>
+              ))}
+            </div>
+          </details>
+        ) : (
           <div className="chat-quick-actions">
             {safeModes.map((mode) => (
               <button
@@ -69,11 +87,12 @@ export default function AIChatPanel({
                 onClick={(event) => handleModeClick(mode, event)}
                 disabled={!isAssistantAvailable}
               >
-                {mode.label}
+                {mode.icon && <span className="chat-mode-icon">{mode.icon}</span>}
+                <span className="chat-mode-label">{mode.label}</span>
               </button>
             ))}
           </div>
-        </details>
+        )
       ) : null}
 
       <div className="chat-history">

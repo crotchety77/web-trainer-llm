@@ -98,7 +98,7 @@ export default function CourseDetailPage() {
                 <p style={{ whiteSpace: "pre-wrap" }}>{course.intro_content}</p>
 
                 {user?.role === "student" ? (
-                  <div className="action-row" style={{ marginTop: "2rem" }}>
+                  <div className="action-row">
                     <button
                       type="button"
                       className="primary-link-button"

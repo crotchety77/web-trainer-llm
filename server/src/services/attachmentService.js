@@ -42,25 +42,25 @@ export function serializeAttachments(attachments) {
 
 export function validateLectureAttachment(file) {
   if (!file) {
-    return "Attachment file is required";
+    return "Файл вложения обязателен";
   }
 
   const extension = path.extname(file.originalname || "").toLowerCase();
   const expectedMimeType = ALLOWED_ATTACHMENT_TYPES.get(extension);
 
   if (!expectedMimeType || file.mimetype !== expectedMimeType) {
-    return "Only PDF and DOCX files can be uploaded";
+    return "Допускается загрузка только файлов PDF и DOCX";
   }
 
   // Защита от MIME-Type Spoofing: Проверка сигнатуры файла (Magic Bytes)
   if (file.buffer) {
     if (file.buffer.length < 4) {
-      return "Only PDF and DOCX files can be uploaded";
+      return "Допускается загрузка только файлов PDF и DOCX";
     }
     if (extension === ".pdf") {
       const isPdfHeader = file.buffer.toString("utf-8", 0, 4) === "%PDF";
       if (!isPdfHeader) {
-        return "Only PDF and DOCX files can be uploaded";
+        return "Допускается загрузка только файлов PDF и DOCX";
       }
     } else if (extension === ".docx") {
       const isDocxHeader =
@@ -69,13 +69,13 @@ export function validateLectureAttachment(file) {
         file.buffer[2] === 0x03 &&
         file.buffer[3] === 0x04;
       if (!isDocxHeader) {
-        return "Only PDF and DOCX files can be uploaded";
+        return "Допускается загрузка только файлов PDF и DOCX";
       }
     }
   }
 
   if (file.size >= MAX_ATTACHMENT_SIZE_BYTES) {
-    return "Attachment must be smaller than 20 MB";
+    return "Размер файла вложения не должен превышать 20 МБ";
   }
 
   return "";

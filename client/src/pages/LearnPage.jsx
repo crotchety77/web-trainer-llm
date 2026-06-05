@@ -12,10 +12,10 @@ import { buildLessonSummaryContext, buildStepsContext } from "../utils/aiContext
 import { useToast } from "../hooks/useToast";
 
 const STUDENT_MODES = [
-  { id: 'code_help', label: '🐞 Помощь с кодом' },
-  { id: 'explain', label: '📖 Объяснение' },
-  { id: 'example', label: '💡 Пример' },
-  { id: 'search_info', label: '🔍 Поиск' }
+  { id: 'code_help', label: 'Помощь с кодом', icon: '🐞' },
+  { id: 'explain', label: 'Объяснить теорию', icon: '📖' },
+  { id: 'example', label: 'Пример', icon: '💡' },
+  { id: 'search_info', label: 'Быстрая справка', icon: '📚' }
 ];
 
 const MODE_DESCRIPTIONS = {
@@ -27,7 +27,7 @@ const MODE_DESCRIPTIONS = {
   code_help: "Помогает находить ошибки в коде, объясняет причины проблем и подсказывает направление исправления без готового решения.",
   explain: "Объясняет теорию и логику решения простыми словами и пошагово разбирает сложные моменты.",
   example: "Показывает похожие примеры и аналогии, чтобы помочь понять принцип решения задачи.",
-  search_info: "Помогает быстро получить краткую информацию, объяснение термина или ответ по теме урока."
+  search_info: "Дает краткое и точное справочное определение, объясняет синтаксис функции или термин без длинных лекций."
 };
 
 const localizeError = (msg) => {

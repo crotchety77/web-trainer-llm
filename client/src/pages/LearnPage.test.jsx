@@ -224,9 +224,9 @@ describe("LearnPage", () => {
     const editor = await screen.findByLabelText("Solution code for Write code");
     fireEvent.change(editor, { target: { value: "function solve() { return false; }" } });
 
-    const input = screen.getByLabelText("Assistant message");
+    const input = screen.getAllByLabelText("Assistant message")[0];
     fireEvent.change(input, { target: { value: "@step2 why error?" } });
-    expect(screen.getByText("@step2")).toBeInTheDocument();
+    expect(screen.getAllByText("@step2")[0]).toBeInTheDocument();
 
     fireEvent.submit(input.closest("form"));
 

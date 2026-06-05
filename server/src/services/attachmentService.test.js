@@ -19,7 +19,7 @@ describe("validateLectureAttachment() (Таблица П.6)", () => {
       size: 1024
     };
     const result = validateLectureAttachment(file);
-    expect(result).toBe("Only PDF and DOCX files can be uploaded");
+    expect(result).toBe("Допускается загрузка только файлов PDF и DOCX");
   });
 
   it("VA-03: Блокировка исполняемых файлов", () => {
@@ -29,7 +29,7 @@ describe("validateLectureAttachment() (Таблица П.6)", () => {
       size: 1024
     };
     const result = validateLectureAttachment(file);
-    expect(result).toBe("Only PDF and DOCX files can be uploaded");
+    expect(result).toBe("Допускается загрузка только файлов PDF и DOCX");
   });
 
   it("VA-04: Контроль верхней границы размера файла", () => {
@@ -39,7 +39,7 @@ describe("validateLectureAttachment() (Таблица П.6)", () => {
       size: MAX_ATTACHMENT_SIZE_BYTES
     };
     const result = validateLectureAttachment(file);
-    expect(result).toBe("Attachment must be smaller than 20 MB");
+    expect(result).toBe("Размер файла вложения не должен превышать 20 МБ");
   });
 
   it("VA-05: Проверка значения, близкого к верхней границе", () => {
@@ -77,7 +77,7 @@ describe("validateLectureAttachment() (Таблица П.6)", () => {
       size: 1024,
       buffer: Buffer.from("console.log('malicious script')") // Нет сигнатуры %PDF
     };
-    expect(validateLectureAttachment(fakePdfFile)).toBe("Only PDF and DOCX files can be uploaded");
+    expect(validateLectureAttachment(fakePdfFile)).toBe("Допускается загрузка только файлов PDF и DOCX");
 
     const fakeDocxFile = {
       originalname: "malicious.docx",
@@ -85,6 +85,6 @@ describe("validateLectureAttachment() (Таблица П.6)", () => {
       size: 1024,
       buffer: Buffer.from("PK-fake-docx-content") // Первые 4 байта не равны PK\x03\x04
     };
-    expect(validateLectureAttachment(fakeDocxFile)).toBe("Only PDF and DOCX files can be uploaded");
+    expect(validateLectureAttachment(fakeDocxFile)).toBe("Допускается загрузка только файлов PDF и DOCX");
   });
 });

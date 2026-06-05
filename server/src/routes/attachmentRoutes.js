@@ -36,10 +36,10 @@ function handleAttachmentUpload(request, response, next) {
     }
 
     if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-      return response.status(413).json({ message: "Attachment must be smaller than 20 MB" });
+      return response.status(413).json({ message: "Размер файла вложения не должен превышать 20 МБ" });
     }
 
-    return response.status(400).json({ message: "Failed to upload attachment" });
+    return response.status(400).json({ message: "Не удалось загрузить файл вложения" });
   });
 }
 
@@ -52,7 +52,7 @@ router.post(
     const blockId = Number(request.params.id);
 
     if (!blockId) {
-      return response.status(400).json({ message: "Invalid block id" });
+      return response.status(400).json({ message: "Некорректный идентификатор блока" });
     }
 
     const validationError = validateLectureAttachment(request.file);
@@ -64,15 +64,15 @@ router.post(
       const block = await getBlockWithOwnership(blockId);
 
       if (!block) {
-        return response.status(404).json({ message: "Block not found" });
+        return response.status(404).json({ message: "Блок не найден" });
       }
 
       if (block.author_id !== request.user.id) {
-        return response.status(403).json({ message: "You can edit only your own lesson blocks" });
+        return response.status(403).json({ message: "Вы можете редактировать только блоки своих уроков" });
       }
 
       if (block.type !== "lecture") {
-        return response.status(400).json({ message: "Attachments can be uploaded only for lecture blocks" });
+        return response.status(400).json({ message: "Вложения можно загружать только для лекционных блоков" });
       }
 
       const courseId = block.course_id;
@@ -108,7 +108,7 @@ router.post(
       });
     } catch (error) {
       console.error("[attachments/upload] Failed:", error.message);
-      return response.status(500).json({ message: "Failed to upload attachment" });
+      return response.status(500).json({ message: "Не удалось загрузить файл вложения" });
     }
   }
 );
@@ -122,25 +122,25 @@ router.delete(
     const storedName = path.basename(String(request.params.storedName || ""));
 
     if (!blockId || !storedName) {
-      return response.status(400).json({ message: "Invalid attachment id" });
+      return response.status(400).json({ message: "Некорректный идентификатор вложения" });
     }
 
     try {
       const block = await getBlockWithOwnership(blockId);
 
       if (!block) {
-        return response.status(404).json({ message: "Block not found" });
+        return response.status(404).json({ message: "Блок не найден" });
       }
 
       if (block.author_id !== request.user.id) {
-        return response.status(403).json({ message: "You can edit only your own lesson blocks" });
+        return response.status(403).json({ message: "Вы можете редактировать только блоки своих уроков" });
       }
 
       const attachments = parseAttachments(block.attachment_url);
       const nextAttachments = attachments.filter((item) => item.stored_name !== storedName);
 
       if (nextAttachments.length === attachments.length) {
-        return response.status(404).json({ message: "Attachment not found" });
+        return response.status(404).json({ message: "Вложение не найдено" });
       }
 
       await pool.query("UPDATE lesson_blocks SET attachment_url = $1 WHERE id = $2", [
@@ -160,7 +160,7 @@ router.delete(
       return response.json({ attachments: nextAttachments });
     } catch (error) {
       console.error("[attachments/delete] Failed:", error.message);
-      return response.status(500).json({ message: "Failed to delete attachment" });
+      return response.status(500).json({ message: "Не удалось удалить вложение" });
     }
   }
 );
@@ -169,7 +169,7 @@ router.get("/attachments/:storedName", optionalAuthMiddleware, async (request, r
   const storedName = path.basename(String(request.params.storedName || ""));
 
   if (!storedName) {
-    return response.status(400).json({ message: "Invalid attachment id" });
+    return response.status(400).json({ message: "Некорректный идентификатор вложения" });
   }
 
   try {
@@ -187,11 +187,11 @@ router.get("/attachments/:storedName", optionalAuthMiddleware, async (request, r
     );
 
     if (!matchedRow) {
-      return response.status(404).json({ message: "Attachment not found" });
+      return response.status(404).json({ message: "Вложение не найдено" });
     }
 
     if (!canReadCourse(matchedRow, request.user)) {
-      return response.status(403).json({ message: "You do not have access to this attachment" });
+      return response.status(403).json({ message: "У вас нет доступа к этому вложению" });
     }
 
     const attachment = parseAttachments(matchedRow.attachment_url).find(
@@ -203,7 +203,7 @@ router.get("/attachments/:storedName", optionalAuthMiddleware, async (request, r
     return response.download(filePath, attachment.original_name || storedName);
   } catch (error) {
     console.error("[attachments/download] Failed:", error.message);
-    return response.status(500).json({ message: "Failed to download attachment" });
+    return response.status(500).json({ message: "Не удалось скачать вложение" });
   }
 });
 

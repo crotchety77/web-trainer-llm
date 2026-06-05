@@ -84,9 +84,76 @@ export async function executeCodeOnPiston(code, language, testCases, functionNam
       if (functionName && functionName.trim()) {
         const fnName = functionName.trim();
         if (language === "javascript" || language === "js") {
-          executionCode = `${code}\n\n// --- Автоматически сгенерированная обертка ---\nconst fs = require('fs');\nconst input = fs.readFileSync(0, 'utf-8').trim().split(/\\s+/).filter(Boolean);\nif (input.length > 0) {\n  const args = input.map(x => isNaN(Number(x)) ? x : Number(x));\n  const result = eval(\`${fnName}(...args)\`);\n  if (result !== undefined) console.log(result);\n} else {\n  const result = eval(\`${fnName}()\`);\n  if (result !== undefined) console.log(result);\n}`;
+          executionCode = `${code}
+
+// --- Автоматически сгенерированная обертка ---
+const fs = require('fs');
+const rawInput = fs.readFileSync(0, 'utf-8').trim();
+let args = [];
+if (rawInput) {
+  const lines = rawInput.split('\\n').map(line => line.trim()).filter(Boolean);
+  for (const line of lines) {
+    try {
+      args.push(JSON.parse(line));
+    } catch (e) {
+      if (line.includes(' ')) {
+        const tokens = line.split(/\\s+/).filter(Boolean);
+        for (const token of tokens) {
+          try {
+            args.push(JSON.parse(token));
+          } catch (err) {
+            args.push(isNaN(Number(token)) ? token : Number(token));
+          }
+        }
+      } else {
+        args.push(isNaN(Number(line)) ? line : Number(line));
+      }
+    }
+  }
+}
+const result = eval(\`${fnName}(...args)\`);
+if (result !== undefined) {
+  if (typeof result === 'object' && result !== null) {
+    console.log(JSON.stringify(result));
+  } else {
+    console.log(result);
+  }
+}
+`;
         } else if (language === "python" || language === "py") {
-          executionCode = `${code}\n\n# --- Автоматически сгенерированная обертка ---\nimport sys\ninput_data = sys.stdin.read().split()\nargs = []\nfor x in input_data:\n    try:\n        args.append(int(x))\n    except ValueError:\n        try:\n            args.append(float(x))\n        except ValueError:\n            args.append(x)\nresult = eval("${fnName}(*args)")\nif result is not None:\n    print(result)\n`;
+          executionCode = `${code}
+
+# --- Автоматически сгенерированная обертка ---
+import sys, json
+raw_input = sys.stdin.read().strip()
+args = []
+if raw_input:
+    lines = [line.strip() for line in raw_input.split('\\n') if line.strip()]
+    for line in lines:
+        try:
+            args.append(json.loads(line))
+        except Exception:
+            if ' ' in line:
+                for token in line.split():
+                    try:
+                        args.append(json.loads(token))
+                    except Exception:
+                        try:
+                            args.append(float(token) if '.' in token else int(token))
+                        except ValueError:
+                            args.append(token)
+            else:
+                try:
+                    args.append(float(line) if '.' in line else int(line))
+                except ValueError:
+                    args.append(line)
+result = eval("${fnName}(*args)")
+if result is not None:
+    if isinstance(result, (dict, list)):
+        print(json.dumps(result, ensure_ascii=False, separators=(',', ':')))
+    else:
+        print(result)
+`;
         }
       }
 
