@@ -4,6 +4,12 @@ import authRoutes from "./routes/authRoutes.js";
 import courseRoutes from "./routes/courseRoutes.js";
 import { config } from "./config.js";
 import { getAiStatus } from "./modules/ai.js";
+import aiRoutes from "./routes/aiRoutes.js";
+import codeRoutes from "./routes/codeRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import studentCourseRoutes from "./routes/studentCourseRoutes.js";
+import attachmentRoutes from "./routes/attachmentRoutes.js";
+import lessonRoutes from "./routes/lessonRoutes.js";
 
 export const app = express();
 
@@ -30,8 +36,12 @@ function isAllowedDevOrigin(origin) {
     return (
       hostname === "localhost" ||
       hostname === "127.0.0.1" ||
+      hostname.startsWith("26.") ||
       hostname.startsWith("10.") ||
       hostname.startsWith("192.168.") ||
+      hostname.endsWith(".ngrok-free.dev") ||
+      hostname.endsWith(".ngrok-free.app") ||
+      hostname.endsWith(".loca.lt") ||
       /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
       /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(hostname)
     );
@@ -76,6 +86,12 @@ app.get("/api/health", (request, response) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api", courseRoutes);
+app.use("/api", studentCourseRoutes);
+app.use("/api", attachmentRoutes);
+app.use("/api", lessonRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api", codeRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use((error, request, response, next) => {
   if (response.headersSent) {

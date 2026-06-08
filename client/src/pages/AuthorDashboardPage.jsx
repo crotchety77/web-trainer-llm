@@ -4,20 +4,20 @@ import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 export default function AuthorDashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuthUser({ required: true });
+  const toast = useToast();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadMyCourses() {
       setLoading(true);
-      setError("");
 
       try {
         const data = await apiRequest("/api/my/courses", {
@@ -29,7 +29,7 @@ export default function AuthorDashboardPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          toast.error("Не удалось загрузить ваши курсы");
         }
       } finally {
         if (!cancelled) {
@@ -43,7 +43,7 @@ export default function AuthorDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [toast]);
 
   function handleLogout() {
     clearToken();
@@ -52,37 +52,36 @@ export default function AuthorDashboardPage() {
 
   return (
     <AppLayout
-      title="Author Dashboard"
-      subtitle="Manage your own courses, lessons, and lesson blocks."
+      title="Панель автора"
+      subtitle="Управление вашими курсами, уроками и блоками контента."
       user={user}
       onLogout={handleLogout}
     >
       <section className="panel">
         <div className="action-row">
           <Link className="primary-link-button" to="/author/courses/new">
-            Create course
+            Создать курс
           </Link>
         </div>
 
-        {loading ? <p>Loading your courses...</p> : null}
-        {error ? <p className="error">{error}</p> : null}
+        {loading ? <p>Загрузка ваших курсов...</p> : null}
 
         <div className="course-list">
           {courses.map((course) => (
             <article key={course.id} className="course-card compact">
               <div className="course-card-body">
                 <div className="meta-row">
-                  <span>{course.is_published ? "Published" : "Draft"}</span>
-                  <span>Lessons: {course.lessons_count}</span>
+                  <span style={{ textDecoration: course.is_published ? "underline" : "none" }}>{course.is_published ? "Опубликован" : "Черновик"}</span>
+                  <span>Уроков: {course.lessons_count}</span>
                 </div>
                 <h2>{course.title}</h2>
                 <p>{course.short_description}</p>
                 <div className="action-row">
-                  <Link className="primary-link-button" to={`/author/courses/${course.id}/edit`}>
-                    Edit course page
+                  <Link className="secondary-link-button" to={`/author/courses/${course.id}/edit`}>
+                    Редактировать визитку курса
                   </Link>
-                  <Link className="secondary-link-button" to={`/author/courses/${course.id}/content`}>
-                    Edit content
+                  <Link className="primary-link-button" to={`/author/courses/${course.id}/content`}>
+                    Содержимое курса
                   </Link>
                 </div>
               </div>

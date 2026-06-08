@@ -2,14 +2,15 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { setToken } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   function handleChange(event) {
@@ -19,7 +20,6 @@ export default function LoginPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
@@ -29,9 +29,15 @@ export default function LoginPage() {
       });
 
       setToken(data.token);
-      navigate(data.user.role === "author" ? "/author/dashboard" : "/courses");
+      if (data.user.role === "admin") {
+        navigate("/admin/users");
+      } else if (data.user.role === "author") {
+        navigate("/author/dashboard");
+      } else {
+        navigate("/courses");
+      }
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось войти. Проверьте email и пароль");
     } finally {
       setLoading(false);
     }
@@ -40,12 +46,12 @@ export default function LoginPage() {
   return (
     <main className="auth-layout">
       <section className="card">
-        <h1>Login</h1>
-        <p className="muted">Sign in to continue to your dashboard.</p>
+        <h1>Вход</h1>
+        <p className="muted">Войдите, чтобы продолжить работу.</p>
 
         <form className="form" onSubmit={handleSubmit}>
           <label>
-            <span>Email</span>
+            <span>Электронная почта</span>
             <input
               type="email"
               name="email"
@@ -56,7 +62,7 @@ export default function LoginPage() {
           </label>
 
           <label>
-            <span>Password</span>
+            <span>Пароль</span>
             <input
               type="password"
               name="password"
@@ -65,16 +71,13 @@ export default function LoginPage() {
               required
             />
           </label>
-
-          {error ? <p className="error">{error}</p> : null}
-
           <button type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Login"}
+            {loading ? "Вход..." : "Войти"}
           </button>
         </form>
 
         <p className="helper-text">
-          No account yet? <Link to="/register">Create one</Link>
+          Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
         </p>
       </section>
     </main>

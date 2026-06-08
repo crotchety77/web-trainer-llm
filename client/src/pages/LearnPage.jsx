@@ -1,48 +1,169 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
+import CodeEditor from "../components/CodeEditor";
+import CodeTaskTestResults from "../components/CodeTaskTestResults";
+import AIChatPanel from "../components/AIChatPanel";
 import { useAuthUser } from "../hooks/useAuthUser";
-import { apiRequest } from "../lib/api";
+import { apiRequest, getApiUrl } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
+import { extractStepRefs } from "../utils/extractStepRefs";
+import { buildLessonSummaryContext, buildStepsContext } from "../utils/aiContextBuilders";
+import { useToast } from "../hooks/useToast";
+
+const STUDENT_MODES = [
+  { id: 'code_help', label: 'Помощь с кодом', icon: '🐞' },
+  { id: 'explain', label: 'Объяснить теорию', icon: '📖' },
+  { id: 'example', label: 'Пример', icon: '💡' },
+  { id: 'search_info', label: 'Быстрая справка', icon: '📚' }
+];
+
+const MODE_DESCRIPTIONS = {
+  default: `Ассистент поможет разобраться в задаче, найти ошибку, объяснить теорию или подсказать направление решения.
+
+Можно использовать:
+@step2 почему ошибка?
+@step1 объясни задачу`,
+  code_help: "Помогает находить ошибки в коде, объясняет причины проблем и подсказывает направление исправления без готового решения.",
+  explain: "Объясняет теорию и логику решения простыми словами и пошагово разбирает сложные моменты.",
+  example: "Показывает похожие примеры и аналогии, чтобы помочь понять принцип решения задачи.",
+  search_info: "Дает краткое и точное справочное определение, объясняет синтаксис функции или термин без длинных лекций."
+};
+
+const localizeError = (msg) => {
+  if (msg === "You do not have access to this action") {
+    return "Вы зашли как автор и не можете проходить курс.\nПожалуйста, перезайдите под аккаунтом студента.";
+  }
+  return msg;
+};
+
+function getBlockAttachments(value) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item) => item?.url);
+    }
+  } catch {
+    // Existing blocks may still store a single URL.
+  }
+
+  return [{ original_name: "Прикрепленный файл", url: value }];
+}
+
+function getAttachmentHref(url) {
+  if (!url || /^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  return `${getApiUrl()}${url}`;
+}
 
 export default function LearnPage() {
   const navigate = useNavigate();
   const { courseId, lessonId } = useParams();
-  const { user } = useAuthUser();
+  const { user } = useAuthUser({ required: true });
+  const isAssistantAvailable = Boolean(user?.has_llm_api_key && user?.has_llm_folder_id);
+  const toast = useToast();
   const [lessons, setLessons] = useState([]);
   const [lesson, setLesson] = useState(null);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [solutions, setSolutions] = useState({});
   const [submissionState, setSubmissionState] = useState({});
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isAssistantSheetOpen, setIsAssistantSheetOpen] = useState(false);
+  const [isLessonsOpen, setIsLessonsOpen] = useState(false);
+  const [activeMode, setActiveMode] = useState(null);
+  const [quizAnswers, setQuizAnswers] = useState({});
 
-  const lessonSections = useMemo(() => {
-    const sectionSize = 6;
+  const sortedBlocks = useMemo(() => {
+    if (!lesson?.blocks) return [];
+    return [...lesson.blocks].sort((a, b) => (a.position || 0) - (b.position || 0));
+  }, [lesson?.blocks]);
+  const detectedStepRefs = useMemo(() => extractStepRefs(chatInput), [chatInput]);
 
-    return lessons.reduce((sections, item) => {
-      const sectionIndex = Math.floor((Number(item.position || 1) - 1) / sectionSize);
-      const title = `Section ${sectionIndex + 1}`;
-      const existingSection = sections.find((section) => section.title === title);
+  const activeLessonRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const chatLoadedRef = useRef({ userId: null, lessonId: null });
 
-      if (existingSection) {
-        existingSection.lessons.push(item);
-        return sections;
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
+  }, [chatMessages, isChatLoading]);
+
+  useEffect(() => {
+    if (!isAssistantSheetOpen) {
+      return undefined;
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setIsAssistantSheetOpen(false);
       }
+    }
 
-      sections.push({
-        title,
-        lessons: [item]
-      });
-      return sections;
-    }, []);
-  }, [lessons]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isAssistantSheetOpen]);
+
+  // Load chat history from localStorage
+  useEffect(() => {
+    if (user?.id && lessonId) {
+      if (chatLoadedRef.current.userId !== user.id || chatLoadedRef.current.lessonId !== lessonId) {
+        const saved = localStorage.getItem(`chat_history_${user.id}_lesson_${lessonId}`);
+        if (saved) {
+          try {
+            setChatMessages(JSON.parse(saved));
+          } catch (e) {
+            console.error("Failed to parse saved chat history:", e);
+            setChatMessages([]);
+          }
+        } else {
+          setChatMessages([]);
+        }
+        chatLoadedRef.current = { userId: user.id, lessonId };
+      }
+    } else {
+      setChatMessages([]);
+      chatLoadedRef.current = { userId: null, lessonId: null };
+    }
+  }, [user?.id, lessonId]);
+
+  // Save chat history to localStorage
+  useEffect(() => {
+    if (user?.id && lessonId && chatLoadedRef.current.userId === user.id && chatLoadedRef.current.lessonId === lessonId) {
+      if (chatMessages.length > 0) {
+        localStorage.setItem(`chat_history_${user.id}_lesson_${lessonId}`, JSON.stringify(chatMessages));
+      } else {
+        localStorage.removeItem(`chat_history_${user.id}_lesson_${lessonId}`);
+      }
+    }
+  }, [chatMessages, user?.id, lessonId]);
+
+  useEffect(() => {
+    if (activeLessonRef.current && lessons.length > 0) {
+      const activeIndex = lessons.findIndex(l => l.id === lesson?.id);
+      // Скроллим только если урок находится за пределами первого экрана (например, после 15-го)
+      if (activeIndex > 14) {
+        activeLessonRef.current.scrollIntoView({
+          behavior: 'auto',
+          block: 'start'
+        });
+      }
+    }
+  }, [lesson?.id, lessons]);
+
+
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadLessonData() {
       setLoading(true);
-      setError("");
 
       try {
         const [lessonsResponse, lessonResponse] = await Promise.all([
@@ -57,10 +178,27 @@ export default function LearnPage() {
         if (!cancelled) {
           setLessons(lessonsResponse.lessons || []);
           setLesson(lessonResponse.lesson);
+
+          // Восстанавливаем ответы на опросы из БД
+          const initialQuizAnswers = {};
+          (lessonResponse.lesson.blocks || []).forEach(b => {
+            if (b.last_quiz_answers) {
+              initialQuizAnswers[b.id] = b.last_quiz_answers;
+            }
+          });
+          if (Object.keys(initialQuizAnswers).length > 0) {
+            setQuizAnswers((current) => ({ ...current, ...initialQuizAnswers }));
+          }
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          // Если сервер отклонил запрос из-за отсутствия токена, принудительно отправляем на логин
+          if (requestError.message === "Authorization token is required") {
+            navigate("/login");
+            return;
+          } else {
+            toast.error("Не удалось загрузить урок");
+          }
         }
       } finally {
         if (!cancelled) {
@@ -74,11 +212,95 @@ export default function LearnPage() {
     return () => {
       cancelled = true;
     };
-  }, [courseId, lessonId]);
+  }, [courseId, lessonId, navigate, toast]);
 
   function handleLogout() {
     clearToken();
     navigate("/login");
+  }
+
+  async function handleCompleteBlock(blockId) {
+    if (!user) return;
+
+    setSubmissionState((current) => ({
+      ...current,
+      [blockId]: { submitting: true, error: "" }
+    }));
+
+    try {
+      await apiRequest(`/api/blocks/${blockId}/complete`, {
+        method: "POST",
+        headers: getAuthHeaders()
+      });
+      setLesson((current) => ({
+        ...current,
+        blocks: current.blocks.map((b) => (b.id === blockId ? { ...b, is_completed: true } : b))
+      }));
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: { submitting: false, error: "" }
+      }));
+      toast.success("Шаг отмечен как пройденный");
+    } catch (requestError) {
+      console.error("Failed to mark block as completed:", requestError);
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: { submitting: false, error: localizeError(requestError.message) }
+      }));
+      toast.error("Не удалось отметить шаг");
+    }
+  }
+
+  async function handleSubmitQuiz(blockId) {
+    const answers = quizAnswers[blockId] || [];
+
+    setSubmissionState((current) => ({
+      ...current,
+      [blockId]: {
+        submitting: true,
+        error: "",
+        submission: null,
+        hint: null
+      }
+    }));
+
+    try {
+      const response = await apiRequest(`/api/blocks/${blockId}/submit`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ answers })
+      });
+
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: {
+          submitting: false,
+          error: "",
+          submission: response.attempt,
+          hint: response.hint || null
+        }
+      }));
+
+      if (response.attempt && response.attempt.is_correct) {
+        toast.success("Ответ верный");
+        setLesson((current) => ({
+          ...current,
+          blocks: current.blocks.map((b) => (b.id === blockId ? { ...b, is_completed: true } : b))
+        }));
+      } else {
+        toast.warning("Ответ неверный");
+      }
+    } catch (requestError) {
+      setSubmissionState((current) => ({
+        ...current,
+        [blockId]: {
+          submitting: false,
+          error: localizeError(requestError.message),
+          submission: null
+        }
+      }));
+      toast.error("Не удалось проверить ответ");
+    }
   }
 
   function handleSolutionChange(blockId, value) {
@@ -104,10 +326,11 @@ export default function LearnPage() {
         ...current,
         [blockId]: {
           submitting: false,
-          error: "Enter your solution code before submitting.",
+          error: "Пожалуйста, введите код решения перед отправкой.",
           submission: null
         }
       }));
+      toast.warning("Введите код решения");
       return;
     }
 
@@ -120,13 +343,16 @@ export default function LearnPage() {
       }
     }));
 
+    const block = lesson.blocks.find(b => b.id === blockId);
+    const language = block?.quiz_data?.language || "javascript";
+
     try {
       const response = await apiRequest(`/api/blocks/${blockId}/submissions`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
           code,
-          language: "javascript"
+          language
         })
       });
 
@@ -138,61 +364,134 @@ export default function LearnPage() {
           submission: response.submission
         }
       }));
+
+      // Автоматически помечаем задание как выполненное в UI, если код прошел проверку успешно
+      if (response.submission && ["accepted", "passed"].includes(response.submission.status)) {
+        toast.success("Решение прошло проверку");
+        setLesson((current) => ({
+          ...current,
+          blocks: current.blocks.map((b) => (b.id === blockId ? { ...b, is_completed: true } : b))
+        }));
+      } else {
+        toast.error("Решение не прошло проверку");
+      }
     } catch (requestError) {
       setSubmissionState((current) => ({
         ...current,
         [blockId]: {
           submitting: false,
-          error: requestError.message,
+          error: localizeError(requestError.message),
           submission: null
         }
       }));
+      toast.error("Ошибка выполнения кода");
     }
   }
 
+  async function handleChatSubmit(event) {
+    event?.preventDefault();
+    if (!chatInput.trim() || isChatLoading || !isAssistantAvailable) return;
+
+    const userText = chatInput.trim();
+    setChatInput("");
+    setChatMessages((current) => [...current, { role: "user", text: userText }]);
+    setIsChatLoading(true);
+    toast.info("Генерируем ответ ассистента...");
+
+    try {
+      const lessonContext = buildLessonSummaryContext(lesson, sortedBlocks);
+      const stepsContext = buildStepsContext({
+        text: userText,
+        sortedBlocks,
+        solutions,
+        submissionState
+      });
+
+      const response = await apiRequest("/api/ai/chat", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          userInput: userText,
+          lessonContext,
+          stepsContext,
+          chatHistory: chatMessages,
+          mode: activeMode
+        })
+      });
+
+      setChatMessages((current) => [...current, { role: "assistant", text: response.message.text }]);
+      toast.success("Ответ ассистента готов");
+      setActiveMode(null);
+    } catch (requestError) {
+      setChatMessages((current) => [...current, { role: "assistant", text: `Ошибка: ${requestError.message}` }]);
+      toast.error("Не удалось получить ответ ассистента");
+    } finally {
+      setIsChatLoading(false);
+    }
+  }
+
+  const chatPanelProps = {
+    user,
+    messages: chatMessages,
+    chatInput,
+    setChatInput,
+    onSendMessage: handleChatSubmit,
+    onClearHistory: () => setChatMessages([]),
+    isChatLoading,
+    isAssistantAvailable,
+    activeMode,
+    setActiveMode,
+    modes: STUDENT_MODES,
+    modeDescriptions: MODE_DESCRIPTIONS,
+    detectedContext: detectedStepRefs,
+    chatEndRef
+  };
+
   return (
     <AppLayout
-      title={lesson?.course_title || "Learning Workspace"}
-      subtitle="Read the theory, solve the task, and keep lesson context close."
+      title={lesson?.course_title || "Процесс обучения"}
       user={user}
       onLogout={handleLogout}
+      heroLink={`/courses/${courseId}`}
     >
       <section className="learn-page">
-        {loading ? <p>Loading lesson...</p> : null}
-        {error ? <p className="error">{error}</p> : null}
+        {loading ? <p>Загрузка урока...</p> : null}
 
         {!loading && lesson ? (
           <div className="learn-layout">
-            <aside className="learn-sidebar" aria-label="Lesson navigation">
+            <aside className={`learn-sidebar ${isLessonsOpen ? "open" : ""}`} aria-label="Lesson navigation">
+              <button
+                type="button"
+                className="learn-sidebar-toggle"
+                onClick={() => setIsLessonsOpen((current) => !current)}
+                aria-expanded={isLessonsOpen}
+              >
+                <span>
+                  <span className="eyebrow">Курс</span>
+                  <strong>Уроки</strong>
+                </span>
+                <span aria-hidden="true">{isLessonsOpen ? "−" : "+"}</span>
+              </button>
               <div className="learn-sidebar-header">
-                <span className="eyebrow">Course</span>
-                <h2>Lessons</h2>
+                <span className="eyebrow">Курс</span>
+                <h2>Уроки</h2>
               </div>
-              <div className="lesson-accordion">
-                {lessonSections.map((section) => {
-                  const isCurrentSection = section.lessons.some((item) => item.id === lesson.id);
+              <div className="stack-list learn-lessons-list">
+                {lessons.map((item, index) => {
+                  const displayPosition = index + 1;
 
                   return (
-                    <details key={section.title} className="lesson-section" open={isCurrentSection}>
-                      <summary>
-                        <span>{section.title}</span>
-                        <span className="lesson-count">{section.lessons.length}</span>
-                      </summary>
-                      <div className="lesson-section-list">
-                        {section.lessons.map((item) => (
-                          <Link
-                            key={item.id}
-                            className={`lesson-link-card ${item.id === lesson.id ? "active" : ""}`}
-                            to={`/learn/${courseId}/${item.id}`}
-                          >
-                            <span className="lesson-number">{item.position}</span>
-                            <strong>
-                              {item.position}. {item.title}
-                            </strong>
-                          </Link>
-                        ))}
-                      </div>
-                    </details>
+                    <Link
+                      key={item.id}
+                      ref={item.id === lesson?.id ? activeLessonRef : null}
+                      className={`lesson-link-card ${item.id === lesson?.id ? "active" : ""}`}
+                      to={`/learn/${courseId}/${item.id}`}
+                    >
+                      <span className="lesson-number">{displayPosition}</span>
+                      <strong>
+                        {item.title}
+                      </strong>
+                    </Link>
                   );
                 })}
               </div>
@@ -201,48 +500,120 @@ export default function LearnPage() {
             <div className="learn-workspace">
               <main className="lesson-content">
                 <div className="lesson-header">
-                  <span className="eyebrow">Lesson {lesson.position}</span>
+                  <span className="eyebrow">Урок {lesson.position}</span>
                   <h2>
                     {lesson.position}. {lesson.title}
                   </h2>
                 </div>
 
                 <div className="lesson-stream">
-                  {lesson.blocks.map((block) => {
+                  {sortedBlocks.map((block, index) => {
                     const isCodeBlock = ["practice", "test"].includes(block.type);
                     const blockState = submissionState[block.id] || {};
+                    const isCompleted = block.is_completed;
 
                     return (
-                      <article key={block.id} className={`learning-block ${isCodeBlock ? "with-editor" : ""}`}>
+                      <article key={block.id} className={`learning-block ${isCodeBlock ? "with-editor" : ""} ${isCompleted ? "completed-block" : ""}`} style={isCompleted ? { borderLeft: '4px solid #10b981', background: 'rgba(16, 185, 129, 0.05)' } : {}}>
                         <div className="block-meta">
                           <span className="tag-chip">{block.type}</span>
-                          <span>Step {block.position}</span>
+                          <span>Шаг {index + 1}</span>
+                          {isCompleted && (
+                            <span style={{ color: '#10b981', marginLeft: 'auto', fontWeight: 'bold' }}>
+                              ✓ Выполнено
+                            </span>
+                          )}
                         </div>
                         <div className="block-copy">
                           <h3>{block.title}</h3>
-                          <p>{block.content}</p>
-                          {block.attachment_url ? (
-                            <a href={block.attachment_url} target="_blank" rel="noreferrer">
-                              Attachment
-                            </a>
+                          <p style={{ whiteSpace: "pre-wrap" }}>{block.content}</p>
+                          {block.type === "lecture" && getBlockAttachments(block.attachment_url).length ? (
+                            <div className="lecture-attachments">
+                              {getBlockAttachments(block.attachment_url).map((attachment) => (
+                                <a
+                                  key={attachment.stored_name || attachment.url}
+                                  href={getAttachmentHref(attachment.url)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {attachment.original_name || "Скачать файл"}
+                                </a>
+                              ))}
+                            </div>
                           ) : null}
                         </div>
 
-                        {isCodeBlock ? (
+                        {!isCodeBlock && !isCompleted && user && (
+                          <div className="block-actions">
+                            {blockState.error && (
+                              <div className="check-result error-result" style={{ margin: 0, flex: 1 }}>
+                                <span>Ошибка</span>
+                                <p className="result-text-error">{blockState.error}</p>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              disabled={blockState.submitting}
+                              onClick={() => handleCompleteBlock(block.id)}
+                            >
+                              {blockState.submitting ? "Обработка..." : "Отметить как прочитанное"}
+                            </button>
+                          </div>
+                        )}
+
+                        {block.quiz_data && block.quiz_data.options && block.quiz_data.options.length > 0 ? (
+                          <div className="quiz-renderer">
+                            <h4>Опрос</h4>
+                            <form onSubmit={(e) => { e.preventDefault(); handleSubmitQuiz(block.id); }}>
+                              {block.quiz_data.options.map((opt, idx) => {
+                                const isMultiple = block.quiz_data.quiz_type === "multiple";
+                                const isChecked = (quizAnswers[block.id] || []).includes(idx);
+                                return (
+                                  <label key={idx} style={{ display: 'block', marginBottom: '0.75rem', cursor: isCompleted ? 'default' : 'pointer', padding: '0.75rem', borderRadius: '6px', border: `1px solid ${isChecked ? 'var(--primary-color, #0284c7)' : '#e2e8f0'}`, background: isChecked ? 'var(--primary-light, #e0f2fe)' : '#f8fafc' }}>
+                                    <input
+                                      type={isMultiple ? "checkbox" : "radio"}
+                                      name={`quiz-${block.id}`}
+                                      checked={isChecked}
+                                      disabled={isCompleted || blockState.submitting}
+                                      onChange={(e) => {
+                                        if (isMultiple) {
+                                          setQuizAnswers(cur => {
+                                            const prev = cur[block.id] || [];
+                                            return { ...cur, [block.id]: e.target.checked ? [...prev, idx] : prev.filter(i => i !== idx) };
+                                          });
+                                        } else {
+                                          setQuizAnswers(cur => ({ ...cur, [block.id]: [idx] }));
+                                        }
+                                      }}
+                                      style={{ marginRight: '0.75rem', accentColor: 'var(--primary-color)' }}
+                                    />
+                                    {opt.text}
+                                  </label>
+                                );
+                              })}
+                              <div className="submission-panel" aria-live="polite" style={{ marginTop: '1rem' }}>
+                                <button type="submit" className="secondary-button submit-button" disabled={blockState.submitting || isCompleted || !user || (quizAnswers[block.id] || []).length === 0}>
+                                  {blockState.submitting ? "Проверка..." : isCompleted ? "Пройдено" : user ? "Ответить" : "Войдите для ответа"}
+                                </button>
+                                {blockState.error && <div className="check-result error-result" style={{ marginTop: '0.5rem' }}><span>Ошибка</span><p className="result-text-error">{blockState.error}</p></div>}
+                                {blockState.hint && <div className="check-result error-result" style={{ marginTop: '0.5rem' }}><span>Неверно</span><p className="result-text-error">{blockState.hint}</p></div>}
+                                {blockState.submission && blockState.submission.is_correct && <div className="check-result success-result" style={{ marginTop: '0.5rem' }}><span>Успех</span><p className="result-text-success">Правильный ответ!</p></div>}
+                              </div>
+                            </form>
+                          </div>
+                        ) : isCodeBlock ? (
                           <div className="code-submission">
                             <div className="editor-shell">
                               <div className="editor-toolbar">
-                                <label htmlFor={`solution-${block.id}`}>Solution code</label>
-                                <span>JavaScript</span>
+                                <label htmlFor={`solution-${block.id}`}>Код решения</label>
+                                <span>{block.quiz_data?.language || "javascript"}</span>
                               </div>
-                              <textarea
-                                id={`solution-${block.id}`}
-                                aria-label={`Solution code for ${block.title}`}
-                                className="code-editor"
-                                rows={10}
-                                value={solutions[block.id] || ""}
-                                onChange={(event) => handleSolutionChange(block.id, event.target.value)}
-                                placeholder="function solve() {&#10;  return true;&#10;}"
+                              <CodeEditor
+                                ariaLabel={`Solution code for ${block.title}`}
+                                value={solutions[block.id] !== undefined ? solutions[block.id] : (block.quiz_data?.placeholder_code || "")}
+                                onChange={(val) => handleSolutionChange(block.id, val)}
+                                language={block.quiz_data?.language || "javascript"}
+                                height={320}
                               />
                             </div>
 
@@ -250,32 +621,22 @@ export default function LearnPage() {
                               <button
                                 type="button"
                                 className="secondary-button submit-button"
-                                disabled={blockState.submitting}
+                                disabled={blockState.submitting || !user}
                                 onClick={() => handleSubmitSolution(block.id)}
                               >
-                                {blockState.submitting ? "Submitting..." : "Submit solution"}
+                                {blockState.submitting ? "Отправка..." : user ? "Проверить решение" : "Войдите для проверки"}
                               </button>
                               {blockState.error ? (
                                 <div className="check-result error-result">
-                                  <span>Check failed</span>
-                                  <p className="error">{blockState.error}</p>
+                                  <span>Ошибка проверки</span>
+                                  <p className="result-text-error">{blockState.error}</p>
                                 </div>
                               ) : null}
-                              {blockState.submission ? (
-                                <div className="check-result success-result">
-                                  <span>{blockState.submission.status || "Result"}</span>
-                                  <p className="success">{blockState.submission.result_message}</p>
-                                  {blockState.submission.tests_result ? (
-                                    <div className="test-stats">
-                                      <span>Total: {blockState.submission.tests_result.total}</span>
-                                      <span>Passed: {blockState.submission.tests_result.passed}</span>
-                                      <span>Failed: {blockState.submission.tests_result.failed}</span>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              ) : null}
+                              {blockState.submission && (
+                                <CodeTaskTestResults results={blockState.submission} isAuthor={false} />
+                              )}
                               {!blockState.error && !blockState.submission && !blockState.submitting ? (
-                                <p className="helper-text">Run your answer when the solution is ready.</p>
+                                <p className="helper-text">Запустите проверку, когда решение будет готово.</p>
                               ) : null}
                             </div>
                           </div>
@@ -286,22 +647,37 @@ export default function LearnPage() {
                 </div>
               </main>
 
-              <aside className="assistant-panel" aria-label="Chat assistant">
-                <div>
-                  <span className="eyebrow">Assistant</span>
-                  <h2>Chat</h2>
-                </div>
-                <div className="assistant-placeholder">
-                  <p>Ask for a hint, explain an error, or review your approach.</p>
-                </div>
-                <div className="assistant-input-row">
-                  <input type="text" placeholder="Chat assistant coming soon" disabled />
-                  <button type="button" className="secondary-button" disabled>
-                    Send
-                  </button>
-                </div>
-              </aside>
+              <AIChatPanel className="assistant-panel desktop-assistant-panel" {...chatPanelProps} />
             </div>
+
+            <button
+              type="button"
+              className="assistant-fab"
+              onClick={() => setIsAssistantSheetOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={isAssistantSheetOpen}
+            >
+              Чат
+            </button>
+            <div
+              className={`assistant-sheet-backdrop ${isAssistantSheetOpen ? "open" : ""}`}
+              onClick={() => setIsAssistantSheetOpen(false)}
+              aria-hidden="true"
+            />
+            <section
+              className={`assistant-sheet ${isAssistantSheetOpen ? "open" : ""}`}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Ассистент курса"
+            >
+              <div className="assistant-sheet-header">
+                <strong>Ассистент курса</strong>
+                <button type="button" onClick={() => setIsAssistantSheetOpen(false)} aria-label="Закрыть чат">
+                  ×
+                </button>
+              </div>
+              <AIChatPanel className="assistant-panel assistant-panel-mobile" {...chatPanelProps} />
+            </section>
           </div>
         ) : null}
       </section>

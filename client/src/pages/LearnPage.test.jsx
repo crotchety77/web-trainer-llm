@@ -3,9 +3,20 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LearnPage from "./LearnPage";
 import { apiRequest } from "../lib/api";
+import { ToastProvider } from "../hooks/useToast";
 
 vi.mock("../lib/api", () => ({
   apiRequest: vi.fn()
+}));
+
+vi.mock("../components/CodeEditor", () => ({
+  default: ({ ariaLabel, value, onChange }) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  )
 }));
 
 vi.mock("../hooks/useAuthUser", () => ({
@@ -13,7 +24,9 @@ vi.mock("../hooks/useAuthUser", () => ({
     user: {
       id: 7,
       name: "Student",
-      role: "student"
+      role: "student",
+      has_llm_api_key: true,
+      has_llm_folder_id: true
     }
   })
 }));
@@ -66,11 +79,13 @@ const lesson = {
 
 function renderLearnPage() {
   return render(
-    <MemoryRouter initialEntries={["/learn/3/10"]}>
-      <Routes>
-        <Route path="/learn/:courseId/:lessonId" element={<LearnPage />} />
-      </Routes>
-    </MemoryRouter>
+    <ToastProvider>
+      <MemoryRouter initialEntries={["/learn/3/10"]}>
+        <Routes>
+          <Route path="/learn/:courseId/:lessonId" element={<LearnPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>
   );
 }
 
@@ -108,13 +123,14 @@ describe("LearnPage", () => {
   it("loads lessons and renders theory, practice, and test blocks", async () => {
     renderLearnPage();
 
-    expect(screen.getByText("Loading lesson...")).toBeInTheDocument();
+    expect(screen.getByText("Загрузка урока...")).toBeInTheDocument();
     expect(await screen.findByText("JavaScript Basics")).toBeInTheDocument();
 
-    expect(screen.getAllByText("1. Intro")).toHaveLength(2);
-    expect(screen.getByText("2. Practice")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "1. Intro" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "1Intro" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "2Practice" })).toBeInTheDocument();
     expect(screen.getByText("Read this theory first.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Attachment" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Прикрепленный файл" })).toHaveAttribute(
       "href",
       "https://example.com/theory.pdf"
     );
@@ -127,9 +143,9 @@ describe("LearnPage", () => {
 
     const editor = await screen.findByLabelText("Solution code for Write code");
     fireEvent.change(editor, { target: { value: "function solve() { return true; }" } });
-    fireEvent.click(screen.getAllByRole("button", { name: "Submit solution" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Проверить решение" })[0]);
 
-    expect(screen.getByRole("button", { name: "Submitting..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Отправка..." })).toBeDisabled();
 
     await waitFor(() => {
       expect(apiRequest).toHaveBeenCalledWith("/api/blocks/102/submissions", {
@@ -143,7 +159,7 @@ describe("LearnPage", () => {
         })
       });
     });
-    expect(await screen.findByText("Solution submitted successfully.")).toBeInTheDocument();
+    expect(await screen.findByText("Решение прошло проверку")).toBeInTheDocument();
   });
 
   it("keeps code and shows an error when submission fails", async () => {
@@ -167,7 +183,7 @@ describe("LearnPage", () => {
 
     const editor = await screen.findByLabelText("Solution code for Write code");
     fireEvent.change(editor, { target: { value: "bad code" } });
-    fireEvent.click(screen.getAllByRole("button", { name: "Submit solution" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Проверить решение" })[0]);
 
     expect(await screen.findByText("Failed to submit solution")).toBeInTheDocument();
     expect(editor).toHaveValue("bad code");
@@ -177,13 +193,69 @@ describe("LearnPage", () => {
     renderLearnPage();
 
     await screen.findByLabelText("Solution code for Write code");
-    fireEvent.click(screen.getAllByRole("button", { name: "Submit solution" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Проверить решение" })[0]);
 
-    expect(await screen.findByText("Enter your solution code before submitting.")).toBeInTheDocument();
+    expect(await screen.findByText("Пожалуйста, введите код решения перед отправкой.")).toBeInTheDocument();
     expect(apiRequest).not.toHaveBeenCalledWith(
       "/api/blocks/102/submissions",
       expect.anything()
     );
+  });
+
+  it("sends slim lesson context and detailed @step context to AI chat", async () => {
+    apiRequest.mockImplementation((path) => {
+      if (path === "/api/courses/3/lessons") {
+        return Promise.resolve({ lessons });
+      }
+
+      if (path === "/api/lessons/10") {
+        return Promise.resolve({ lesson });
+      }
+
+      if (path === "/api/ai/chat") {
+        return Promise.resolve({ message: { role: "assistant", text: "Try checking step 2." } });
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${path}`));
+    });
+
+    renderLearnPage();
+
+    const editor = await screen.findByLabelText("Solution code for Write code");
+    fireEvent.change(editor, { target: { value: "function solve() { return false; }" } });
+
+    const input = screen.getAllByLabelText("Assistant message")[0];
+    fireEvent.change(input, { target: { value: "@step2 why error?" } });
+    expect(screen.getAllByText("@step2")[0]).toBeInTheDocument();
+
+    fireEvent.submit(input.closest("form"));
+
+    await waitFor(() => {
+      expect(apiRequest).toHaveBeenCalledWith("/api/ai/chat", expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test-token"
+        },
+        body: expect.any(String)
+      }));
+    });
+
+    const aiCall = apiRequest.mock.calls.find(([path]) => path === "/api/ai/chat");
+    const payload = JSON.parse(aiCall[1].body);
+
+    expect(payload.userInput).toBe("@step2 why error?");
+    expect(payload.lessonContext).toContain("Урок: Intro");
+    expect(payload.lessonContext).toContain("2. Write code");
+    expect(payload.lessonContext).not.toContain("Return true from solve.");
+    expect(payload.stepsContext).toEqual([
+      expect.objectContaining({
+        stepNumber: 2,
+        blockId: 102,
+        title: "Write code",
+        task: "Return true from solve.",
+        studentCode: "function solve() { return false; }"
+      })
+    ]);
   });
 
   it("shows lesson loading errors without crashing", async () => {
@@ -191,6 +263,6 @@ describe("LearnPage", () => {
 
     renderLearnPage();
 
-    expect(await screen.findByText("You do not have access to this lesson")).toBeInTheDocument();
+    expect(await screen.findByText("Не удалось загрузить урок")).toBeInTheDocument();
   });
 });

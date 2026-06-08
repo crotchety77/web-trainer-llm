@@ -4,22 +4,21 @@ import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import { clearToken, getAuthHeaders } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
 
 export default function CourseDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuthUser();
+  const toast = useToast();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadCourse() {
       setLoading(true);
-      setError("");
 
       try {
         const data = await apiRequest(`/api/courses/${id}`, {
@@ -30,7 +29,7 @@ export default function CourseDetailPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          toast.error("Не удалось загрузить курс");
         }
       } finally {
         if (!cancelled) {
@@ -44,7 +43,7 @@ export default function CourseDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, toast]);
 
   function handleLogout() {
     clearToken();
@@ -52,86 +51,117 @@ export default function CourseDetailPage() {
   }
 
   async function handleEnroll() {
-    setMessage("");
-    setError("");
-
     try {
       await apiRequest(`/api/courses/${id}/enroll`, {
         method: "POST",
         headers: getAuthHeaders()
       });
-      setMessage("You are enrolled in this course.");
+      toast.success("Вы записались на курс");
       setCourse((current) => (current ? { ...current, is_enrolled: true } : current));
     } catch (requestError) {
-      setError(requestError.message);
+      toast.error("Не удалось записаться на курс");
     }
   }
 
   return (
     <AppLayout
-      title={course?.title || "Course"}
-      subtitle="Course overview, lessons list, and enrollment action."
+
       user={user}
       onLogout={handleLogout}
     >
-      <section className="panel">
-        {loading ? <p>Loading course...</p> : null}
-        {error ? <p className="error">{error}</p> : null}
-        {message ? <p className="success">{message}</p> : null}
+      <section className="course-detail-section" style={{ paddingTop: "1rem" }}>
+        {loading ? <p>Загрузка курса...</p> : null}
 
         {course ? (
-          <div className="detail-grid">
-            <div className="detail-main">
-              {course.cover_image_url ? (
-                <img className="hero-cover" src={course.cover_image_url} alt={course.title} />
-              ) : null}
-
-              <div className="tag-row">
-                {(course.tags_json || []).map((item) => (
-                  <span key={item} className="tag-chip">
-                    {item}
-                  </span>
-                ))}
-              </div>
-
-              <h2>{course.title}</h2>
-              <p className="lead">{course.short_description}</p>
-              <p>{course.intro_content}</p>
-
-              {user?.role === "student" ? (
-                <div className="action-row">
-                  <button type="button" onClick={handleEnroll} disabled={course.is_enrolled}>
-                    {course.is_enrolled ? "Already enrolled" : "Enroll in course"}
-                  </button>
-                  {course.lessons?.[0] ? (
-                    <Link
-                      className="secondary-link-button"
-                      to={`/learn/${course.id}/${course.lessons[0].id}`}
-                    >
-                      Start learning
-                    </Link>
-                  ) : null}
-                </div>
-              ) : null}
+          <>
+            <div className="course-detail-actions" style={{ marginBottom: "1rem" }}>
+              <Link className="secondary-link-button" to="/courses">
+                Назад
+              </Link>
             </div>
+            <div className="detail-grid">
+              <div className="detail-main panel">
+                {course.cover_image_url ? (
+                  <img className="hero-cover" src={course.cover_image_url} alt={course.title} />
+                ) : null}
 
-            <aside className="sidebar-panel">
-              <h3>Lessons</h3>
-              <div className="stack-list">
-                {(course.lessons || []).map((lesson) => (
-                  <Link
-                    key={lesson.id}
-                    className="lesson-link-card"
-                    to={`/learn/${course.id}/${lesson.id}`}
-                  >
-                    <strong>
-                      {lesson.position}. {lesson.title}
-                    </strong>
-                  </Link>
-                ))}
+                <div className="tag-row">
+                  {(course.tags_json || []).map((item) => (
+                    <span key={item} className="tag-chip">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+
+                <h2>{course.title}</h2>
+                <p className="lead" style={{ whiteSpace: "pre-wrap" }}>{course.short_description}</p>
+                <p style={{ whiteSpace: "pre-wrap" }}>{course.intro_content}</p>
+
+                {user?.role === "student" ? (
+                  <div className="action-row">
+                    <button
+                      type="button"
+                      className="primary-link-button"
+                      onClick={handleEnroll}
+                      disabled={course.is_enrolled}
+                      style={course.is_enrolled ? { opacity: 0.7, cursor: "not-allowed" } : { cursor: "pointer" }}
+                    >
+                      {course.is_enrolled ? "Вы записаны" : "Записаться на курс"}
+                    </button>
+                    {course.is_enrolled && course.lessons?.[0] ? (
+                      <Link
+                        className="secondary-link-button"
+                        to={`/learn/${course.id}/${course.lessons[0].id}`}
+                      >
+                        Продолжить обучение
+                      </Link>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-            </aside>
-          </div>
+
+              <aside className="sidebar-panel">
+                <h3>Уроки</h3>
+                <div className="stack-list">
+                  {(course.lessons || []).map((lesson, index) => {
+                    const displayPosition = index + 1;
+                    // Разрешаем доступ авторам или студентам, которые уже записались
+                    const canAccess = user && (user.role === "author" || course.is_enrolled);
+
+                    return canAccess ? (
+                      <Link
+                        key={lesson.id}
+                        className="lesson-link-card"
+                        to={`/learn/${course.id}/${lesson.id}`}
+                      >
+                        <span className="lesson-number">{displayPosition}</span>
+                        <strong>
+                          {lesson.title}
+                        </strong>
+                      </Link>
+                    ) : (
+                      <div
+                        key={lesson.id}
+                        className="lesson-link-card"
+                        style={{ opacity: 0.7, cursor: "not-allowed" }}
+                        title={user ? "Сначала запишитесь на курс" : "Войдите, чтобы получить доступ к уроку"}
+                      >
+                        <span className="lesson-number">{displayPosition}</span>
+                        <strong>
+                          {lesson.title}
+                        </strong>
+                      </div>
+                    );
+                  })}
+                </div>
+                {!user && (
+                  <p className="helper-text" style={{ marginTop: "1rem" }}>
+                    <Link to="/login">Войдите</Link> или <Link to="/register">зарегистрируйтесь</Link>, чтобы начать обучение.
+                  </p>
+                )}
+              </aside>
+            </div>
+          </>
         ) : null}
       </section>
     </AppLayout>

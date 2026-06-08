@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  client:
+    build: ./client
+    ports:
+      - "3000:5173"
+    depends_on:
+      - server
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=
+
+  server:
+    build: ./server
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+      - piston
+    env_file:
+      - .env
+    environment:
+      # Переопределяем DATABASE_URL для Docker (вместо localhost используем имя сервиса db)
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/web_trainer_platform
+      - PISTON_URL=http://piston:2000
+      - PORT=5000
+
+  db:
+    image: postgres:17-alpine
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=web_trainer_platform
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/init.sql
+  piston:
+    image: ghcr.io/engineer-man/piston:latest
+    restart: always
+    ports:
+      - "2001:2000"
+    privileged: true
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - piston_packages:/piston/packages
+      - piston_isolate:/piston/isolate
+
+volumes:
+  pgdata:
+  piston_packages:
+  piston_isolate:

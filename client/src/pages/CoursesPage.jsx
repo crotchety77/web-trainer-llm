@@ -1,26 +1,47 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { apiRequest } from "../lib/api";
 import { clearToken } from "../lib/auth";
+import { useToast } from "../hooks/useToast";
+
+const DEFAULT_TAGS = [
+  "JavaScript", "TypeScript", "React", "Node.js", "Python",
+  "SQL", "JWT", "HTML", "CSS", "Go", "Docker"
+];
 
 export default function CoursesPage() {
   const navigate = useNavigate();
   const { user } = useAuthUser();
+  const toast = useToast();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [tag, setTag] = useState(searchParams.get("tag") || "");
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  const allTags = useMemo(() => {
+    return [...new Set(courses.flatMap((course) => course.tags_json || []))].sort((a, b) =>
+      String(a).localeCompare(String(b))
+    );
+  }, [courses]);
+
+  const combinedTags = useMemo(() => {
+    return Array.from(new Set([...DEFAULT_TAGS, ...allTags]));
+  }, [allTags]);
+
+  const filteredTags = combinedTags.filter(t =>
+    t.toLowerCase().includes(tag.toLowerCase())
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadCourses() {
       setLoading(true);
-      setError("");
 
       const query = new URLSearchParams();
       if (search) {
@@ -37,7 +58,7 @@ export default function CoursesPage() {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError.message);
+          toast.error("Не удалось загрузить курсы");
         }
       } finally {
         if (!cancelled) {
@@ -51,13 +72,17 @@ export default function CoursesPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, tag]);
+  }, [search, tag, toast]);
 
-  const allTags = useMemo(() => {
-    return [...new Set(courses.flatMap((course) => course.tags_json || []))].sort((a, b) =>
-      String(a).localeCompare(String(b))
-    );
-  }, [courses]);
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   function handleLogout() {
     clearToken();
@@ -78,51 +103,75 @@ export default function CoursesPage() {
 
   return (
     <AppLayout
-      title="Published Courses"
-      subtitle="Student-facing catalog with simple search and tag filtering."
+      title="Доступные курсы"
       user={user}
       onLogout={handleLogout}
     >
       <section className="panel">
-        <form className="filters-row" onSubmit={handleSearchSubmit}>
+        <form className="filters-row" onSubmit={handleSearchSubmit} style={{ alignItems: 'flex-end', width: '100%' }}>
           <label className="inline-field">
-            <span>Search</span>
+            <span>Поиск</span>
             <input
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="React, SQL, JWT..."
+              placeholder="Поиск по названию, intro"
             />
           </label>
 
-          <label className="inline-field">
-            <span>Tag</span>
-            <select value={tag} onChange={(event) => setTag(event.target.value)}>
-              <option value="">All tags</option>
-              {allTags.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
+          <label className="inline-field" ref={wrapperRef} style={{ position: 'relative' }}>
+            <span>Теги</span>
+            <input
+              type="text"
+              value={tag}
+              onChange={(event) => {
+                setTag(event.target.value);
+                setIsOpen(true);
+              }}
+              onFocus={() => setIsOpen(true)}
+              placeholder="React, SQL..."
+              autoComplete="off"
+            />
+            {isOpen && filteredTags.length > 0 && (
+              <ul className="custom-dropdown">
+                {filteredTags.slice(0, 5).map((item) => (
+                  <li
+                    key={item}
+                    onClick={() => {
+                      setTag(item);
+                      setIsOpen(false);
+                    }}
+                  >
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
           </label>
 
-          <button type="submit">Apply</button>
+          <button type="submit" className="secondary-button">
+            Поиск
+          </button>
         </form>
 
-        {loading ? <p>Loading courses...</p> : null}
-        {error ? <p className="error">{error}</p> : null}
+        {loading ? <p>Загрузка курсов...</p> : null}
 
-        {!loading && !courses.length ? <p>No published courses match this filter.</p> : null}
+        {!loading && !courses.length ? <p>По вашему запросу ничего не найдено.</p> : null}
 
         <div className="course-list">
           {courses.map((course) => (
             <article key={course.id} className="course-card">
-              {course.cover_image_url ? (
-                <img className="cover-image" src={course.cover_image_url} alt={course.title} />
-              ) : (
-                <div className="cover-placeholder">No cover</div>
-              )}
+              <div className="course-card-media">
+                {course.cover_image_url ? (
+                  <img className="cover-image" src={course.cover_image_url} alt={course.title} />
+                ) : (
+                  <div className="cover-placeholder">Нет обложки</div>
+                )}
+
+                <Link className="primary-link-button" to={`/courses/${course.id}`}>
+                  Просмотр
+                </Link>
+              </div>
 
               <div className="course-card-body">
                 <div className="tag-row">
@@ -137,13 +186,9 @@ export default function CoursesPage() {
                 <p>{course.short_description}</p>
 
                 <div className="meta-row">
-                  <span>Author: {course.author_name}</span>
-                  <span>Lessons: {course.lessons_count}</span>
+                  <span>Автор: {course.author_name}</span>
+                  <span>Количество уроков: {course.lessons_count}</span>
                 </div>
-
-                <Link className="primary-link-button" to={`/courses/${course.id}`}>
-                  Open course
-                </Link>
               </div>
             </article>
           ))}
